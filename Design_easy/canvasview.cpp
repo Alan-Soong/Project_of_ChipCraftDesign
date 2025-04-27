@@ -31,12 +31,25 @@ void CanvasView::keyReleaseEvent(QKeyEvent *event) {
 }
 
 void CanvasView::wheelEvent(QWheelEvent *event) {
+    qDebug() << "鼠标按下ctrl";
+    // 检查是否按下了 Ctrl 键
     if (event->modifiers() & Qt::ControlModifier) {
-        // Zoom in/out
-        qreal factor = 1.1;
-        if (event->angleDelta().y() < 0) factor = 1.0 / factor;
-        scale(factor, factor);
+        // 获取滚轮的角度变化
+        int delta = event->angleDelta().y();
+
+        // 缩放因子，控制缩放速度
+        const qreal scaleFactor = 1.2;
+
+        // 根据滚轮的方向来缩放视图
+        if (delta > 0) {
+            scale(scaleFactor, scaleFactor);  // 放大
+        } else {
+            scale(1.0 / scaleFactor, 1.0 / scaleFactor);  // 缩小
+        }
+
+        event->accept();  // 标记事件为已处理
     } else {
+        // 如果没有按下 Ctrl 键，调用基类的事件处理
         QGraphicsView::wheelEvent(event);
     }
 }

@@ -6,7 +6,6 @@
 #include <QMainWindow>
 #include "canvasview.h"
 #include "canvasscene.h"
-
 namespace Ui {
 class MainWindow;
 }

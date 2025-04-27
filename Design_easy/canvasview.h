@@ -22,7 +22,6 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void drawBackground(QPainter *painter, const QRectF &rect) override;
-
 private:
     bool m_shiftHeld = false;
     bool m_leftMouseButtonPressed = false;
