@@ -1,0 +1,8 @@
+name: kll
+color: 
+width: 100
+height: 100
+pins:
+  pin_1: side=, percentage=5, size=10
+  pin_2: side=, percentage=5, size=10
+  pin_3: side=top, percentage=4.9505, size=10

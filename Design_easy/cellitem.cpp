@@ -1,10 +1,15 @@
 #include "cellitem.h"
+// #include "settingdialog.h"
+#include "dialogs.h"
+
 #include <QPainter>
 #include <QCursor>
 #include <QGraphicsSceneMouseEvent>
+#include <QMessageBox>
+#include <QGraphicsView> // 包含此头文件以完成 QGraphicsView 类型的定义
 
 CellItem::CellItem(QGraphicsItem *parent)
-    : QGraphicsItem(parent), m_size(100, 100)  // 默认大小为 100x100
+    : QGraphicsItem(parent), m_size(100, 100), m_resizeEdge(None), m_isDragging(false)  // 默认大小为 100x100
 {
     setFlags(QGraphicsItem::ItemIsSelectable);
     setAcceptHoverEvents(true);
@@ -43,18 +48,66 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         painter->drawRect(QRectF(m_size.width() - cornerSize, 0, cornerSize, cornerSize)); // 右上
         painter->drawRect(QRectF(0, m_size.height() - cornerSize, cornerSize, cornerSize)); // 左下
         painter->drawRect(QRectF(m_size.width() - cornerSize, m_size.height() - cornerSize, cornerSize, cornerSize)); // 右下
-
-        // for (const Connector& connector : getConnectors()) {
-        //     painter->drawEllipse(connector.pos, connectorSize, connectorSize);
-        // }
     }
 }
 
-void CellItem::setSize(const QSizeF& size)
-{
-    prepareGeometryChange(); // 通知场景几何变化
+// void CellItem::setSize(const QSizeF& size)
+// {
+//     prepareGeometryChange();
+//     m_size = size;
+//     if (m_pinItems.size() != m_connectors.size()) {
+//         qWarning() << "m_pinItems and m_connectors out of sync in setSize: pinItems=" << m_pinItems.size()
+//         << ", connectors=" << m_connectors.size();
+//     }
+//     int count = qMin(m_pinItems.size(), m_connectors.size());
+//     for (int i = 0; i < count; ++i) {
+//         if (i >= m_pinItems.size() || i >= m_connectors.size()) {
+//             qWarning() << "Index out of range in setSize: i=" << i << ", pinItems=" << m_pinItems.size()
+//             << ", connectors=" << m_connectors.size();
+//             break;
+//         }
+//         PinItem* pinItem = m_pinItems[i];
+//         Connector& conn = m_connectors[i];
+//         if (!pinItem) {
+//             qWarning() << "Null pinItem at index" << i << "in setSize";
+//             continue;
+//         }
+//         qreal x = qMax(0.0, qMin(conn.pos.x(), m_size.width() - pinItem->boundingRect().width()));
+//         qreal y = qMax(0.0, qMin(conn.pos.y(), m_size.height() - pinItem->boundingRect().height()));
+//         conn.pos = QPointF(x, y);
+//         pinItem->setPos(x, y);
+//     }
+//     update();
+//     qDebug() << "setSize completed: size=" << m_size << ", pinItems=" << m_pinItems.size()
+//              << ", connectors=" << m_connectors.size();
+// }
+
+void CellItem::setSize(const QSizeF& size) {
+    prepareGeometryChange();
     m_size = size;
-    update();  // 更新图形
+    if (m_pinItems.size() != m_connectors.size()) {
+        qWarning() << "m_pinItems and m_connectors out of sync in setSize: pinItems=" << m_pinItems.size()
+        << ", connectors=" << m_connectors.size();
+    }
+    int count = qMin(m_pinItems.size(), m_connectors.size());
+    for (int i = 0; i < count; ++i) {
+        if (i >= m_pinItems.size() || i >= m_connectors.size()) {
+            qWarning() << "Index out of range in setSize: i=" << i << ", pinItems=" << m_pinItems.size()
+            << ", connectors=" << m_connectors.size();
+            break;
+        }
+        PinItem* pinItem = m_pinItems[i];
+        Connector& conn = m_connectors[i];
+        if (!pinItem) {
+            qWarning() << "Null pinItem at index" << i << "in setSize";
+            continue;
+        }
+        QPointF pos = conn.calculatePos(m_size, pinItem->boundingRect().width());
+        pinItem->setPos(pos);
+    }
+    update();
+    qDebug() << "setSize completed: size=" << m_size << ", pinItems=" << m_pinItems.size()
+             << ", connectors=" << m_connectors.size();
 }
 
 QSizeF CellItem::size() const
@@ -62,50 +115,78 @@ QSizeF CellItem::size() const
     return m_size;
 }
 
+QPointF CellItem::Connector::calculatePos(const QSizeF& cellSize, qreal pinSize) const {
+    qreal x = 0, y = 0;
+    if (side == "top") {
+        x = cellSize.width() * percentage / 100.0 - pinSize / 2;
+        y = 0;
+    } else if (side == "bottom") {
+        x = cellSize.width() * percentage / 100.0 - pinSize / 2;
+        y = cellSize.height() - pinSize;
+    } else if (side == "left") {
+        x = 0;
+        y = cellSize.height() * percentage / 100.0 - pinSize / 2;
+    } else if (side == "right") {
+        x = cellSize.width() - pinSize;
+        y = cellSize.height() * percentage / 100.0 - pinSize / 2;
+    }
+    return QPointF(x, y);
+}
+
+void CellItem::addConnector(const QString& side, qreal percentage, qreal size, const QString& id, qreal x, qreal y) {
+    if (!scene()) {
+        qWarning() << "No scene available, cannot add connector:" << id;
+        return;
+    }
+    // percentage = qBound(0.0, percentage, 100.0);
+    // Connector connector(side, percentage, id, x, y);
+    // m_connectors.append(connector);
+    // PinItem* pinItem = new PinItem(this, size, this);
+    // pinItem->setBrush(Qt::darkBlue);
+    // pinItem->setPen(Qt::NoPen);
+    // QPointF pos = connector.calculatePos(m_size, size);
+    // pinItem->setPos(x, y);
+    // m_pinItems.append(pinItem);
+    // scene()->addItem(pinItem);
+    percentage = qBound(0.0, percentage, 100.0);
+    Connector connector(side, percentage, id, x, y);
+    m_connectors.append(connector);
+    PinItem* pinItem = new PinItem(this, size, this);
+    pinItem->setBrush(Qt::darkBlue);
+    pinItem->setPen(Qt::NoPen);
+    pinItem->setPos(x, y);
+    pinItem->updateConnector(id, x, y);
+    m_pinItems.append(pinItem);
+    update();
+    qDebug() << "Added PinItem to scene for connector:" << id << "at side=" << side << ", percentage=" << percentage;
+    qDebug() << "After addConnector: pinItems=" << m_pinItems.size() << ", connectors=" << m_connectors.size();
+}
+
 QList<CellItem::Connector> CellItem::getConnectors() const
 {
-    QList<Connector> connectors;
-    QRectF rect = boundingRect();
-    // 四条边的中点
-    connectors << Connector(QPointF(rect.width() / 2, 0), "top");
-    connectors << Connector(QPointF(rect.width() / 2, rect.height()), "bottom");
-    connectors << Connector(QPointF(0, rect.height() / 2), "left");
-    connectors << Connector(QPointF(rect.width(), rect.height() / 2), "right");
-    return connectors;
+    return m_connectors;
+}
+
+QList<PinItem*> CellItem::getPinItems() const {
+    return m_pinItems;
 }
 
 bool CellItem::isOnConnector(const QPointF& pos, Connector& connector) const
 {
-    for (const Connector& c : getConnectors()) {
-        if (QLineF(pos, c.pos).length() <= connectorSize) {
-            connector = c;
+    for (const Connector& conn : m_connectors) {
+        QPointF connPos = conn.calculatePos(m_size, connectorSize);
+        // QRectF connRect(conn.pos.x() - connectorSize / 2, conn.pos.y() - connectorSize / 2,
+                        // connectorSize, connectorSize);
+        QRectF connRect(connPos.x(), connPos.y(), connectorSize, connectorSize);
+        if (connRect.contains(pos)) {
+            connector = conn;
             return true;
         }
     }
     return false;
 }
 
-/*
-bool CellItem::isOnEdge(const QPointF &pos, ResizeEdge &edge) const
-{
-    QRectF rect = boundingRect();
-    qreal x = pos.x();
-    qreal y = pos.y();
-    edge = None;
 
-    // 检测是否在边框区域（5 像素宽）
-    if (x >= -edgeWidth && x <= edgeWidth) {
-        edge = Left;
-    } else if (x >= rect.width() - edgeWidth && x <= rect.width() + edgeWidth) {
-        edge = Right;
-    } else if (y >= -edgeWidth && y <= edgeWidth) {
-        edge = Top;
-    } else if (y >= rect.height() - edgeWidth && y <= rect.height() + edgeWidth) {
-        edge = Bottom;
-    }
-
-    return edge != None;
-}*/
 bool CellItem::isOnEdgeOrCorner(const QPointF &pos, ResizeEdge &edge) const
 {
     QRectF rect = boundingRect();
@@ -144,59 +225,11 @@ void CellItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
         return;
     }
     qDebug() << "图元：鼠标按下位置:" << event->scenePos();
-    /*if (event->button() == Qt::LeftButton && isSelected()) {
-        // 检测是否在边框上
-        ResizeEdge edge;
-        if (isOnEdge(event->pos(), edge)) {
-            m_resizeEdge = edge;
-            setCursor(edge == Left || edge == Right ? QCursor(Qt::SizeHorCursor) :
-                          QCursor(Qt::SizeVerCursor));
-        } else {
-            m_resizeEdge = None;
-            m_dragOffset = event->scenePos() - pos();
-            setCursor(QCursor(Qt::ClosedHandCursor));
-        }
-        update();
-        event->accept();
-    }
-    if (event->button() == Qt::LeftButton && isSelected()) {
-        // 检测是否在边框或角点上
-        ResizeEdge edge;
-        if (isOnEdgeOrCorner(event->pos(), edge)) {
-            m_resizeEdge = edge;
-            // 设置光标
-            switch (edge) {
-            case TopLeft:
-            case BottomRight:
-                setCursor(QCursor(Qt::SizeFDiagCursor));
-                break;
-            case TopRight:
-            case BottomLeft:
-                setCursor(QCursor(Qt::SizeBDiagCursor));
-                break;
-            case Left:
-            case Right:
-                setCursor(QCursor(Qt::SizeHorCursor));
-                break;
-            case Top:
-            case Bottom:
-                setCursor(QCursor(Qt::SizeVerCursor));
-                break;
-            default:
-                break;
-            }
-        } else {
-            m_resizeEdge = None;
-            m_dragOffset = event->scenePos() - pos();
-            setCursor(QCursor(Qt::ClosedHandCursor));
-        }
-        update();
-        event->accept();
-    }
-    */
+
     if (event->button() == Qt::LeftButton && isSelected()) {
         // 检测是否在连接点上
-        Connector connector(QPointF(), "");
+        // Connector connector(QPointF(), "");
+        Connector connector; // 使用默认构造函数
         if (isOnConnector(event->pos(), connector)) {
             // 通知场景开始连线（通过自定义事件或信号）
             scene()->setProperty("startItem", QVariant::fromValue(this));
@@ -238,111 +271,6 @@ void CellItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsItem::mousePressEvent(event);
 }
 
-/*
-void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
-{
-    if (!event || !scene()) {
-        qDebug() << "无效的事件或场景";
-        return;
-    }
-
-    if (event->buttons() & Qt::LeftButton && isSelected()) {
-        if (m_resizeEdge != None) {
-            // 调整大小
-            QRectF rect = boundingRect();
-            QPointF scenePos = event->scenePos();
-            QPointF localPos = mapFromScene(scenePos);
-            QSizeF newSize = m_size;
-            QPointF newPos = pos();
-
-            switch (m_resizeEdge) {
-            // 边框调整
-            case Left:
-                newSize.setWidth(rect.width() - localPos.x());
-                if (newSize.width() > 20) {
-                    newPos.setX(scenePos.x());
-                }
-                break;
-            case Right:
-                newSize.setWidth(localPos.x());
-                break;
-            case Top:
-                newSize.setHeight(rect.height() - localPos.y());
-                if (newSize.height() > 20) {
-                    newPos.setY(scenePos.y());
-                }
-                break;
-            case Bottom:
-                newSize.setHeight(localPos.y());
-                break;
-            // 角点调整
-            case TopLeft:
-                newSize.setWidth(rect.width() - localPos.x());
-                newSize.setHeight(rect.height() - localPos.y());
-                if (newSize.width() > 20 && newSize.height() > 20) {
-                    newPos.setX(scenePos.x());
-                    newPos.setY(scenePos.y());
-                }
-                break;
-            case TopRight:
-                newSize.setWidth(localPos.x());
-                newSize.setHeight(rect.height() - localPos.y());
-                if (newSize.height() > 20) {
-                    newPos.setY(scenePos.y());
-                }
-                break;
-            case BottomLeft:
-                newSize.setWidth(rect.width() - localPos.x());
-                newSize.setHeight(localPos.y());
-                if (newSize.width() > 20) {
-                    newPos.setX(scenePos.x());
-                }
-                break;
-            case BottomRight:
-                newSize.setWidth(localPos.x());
-                newSize.setHeight(localPos.y());
-                break;
-            default:
-                break;
-            }
-
-            // 确保尺寸不小于最小值
-            newSize.setWidth(qMax(20.0, newSize.width()));
-            newSize.setHeight(qMax(20.0, newSize.height()));
-            setSize(newSize);
-
-            // 限制位置在场景边界内
-            QRectF sceneRect = scene()->sceneRect();
-            newPos.setX(qBound(sceneRect.left(), newPos.x(), sceneRect.right() - newSize.width()));
-            newPos.setY(qBound(sceneRect.top(), newPos.y(), sceneRect.bottom() - newSize.height()));
-            setPos(newPos);
-        }
-        else {
-            // 拖动
-            QPointF newPos = event->scenePos() - m_dragOffset;
-            QRectF sceneRect = scene()->sceneRect();
-            newPos.setX(qBound(sceneRect.left(), newPos.x(), sceneRect.right() - m_size.width()));
-            newPos.setY(qBound(sceneRect.top(), newPos.y(), sceneRect.bottom() - m_size.height()));
-            setPos(newPos);
-        }
-        event->accept();
-    }
-    QGraphicsItem::mouseMoveEvent(event);
-}
-
-void CellItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
-{
-    if (!event || !scene()) {
-        qDebug() << "无效的事件或场景";
-        return;
-    }
-    qDebug() << "图元：鼠标释放位置:" << event->scenePos();
-    m_resizeEdge = None;
-    setCursor(QCursor(Qt::OpenHandCursor));
-    m_dragOffset = QPointF(0, 0);
-    update();
-    QGraphicsItem::mouseReleaseEvent(event);
-}*/
 
 // 辅助函数：限制尺寸和位置
 void CellItem::restrictSizeAndPosition(QSizeF& size, QPointF& pos)
@@ -464,4 +392,96 @@ void CellItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     setCursor(QCursor(Qt::OpenHandCursor));
     update();
     QGraphicsItem::mouseReleaseEvent(event);
+}
+
+void CellItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
+{
+    // 检查双击是否发生在单元格内部
+    if (boundingRect().contains(event->pos())) {
+        onDoubleClick();
+    }
+
+    // 确保将事件传递给基类处理
+    QGraphicsItem::mouseDoubleClickEvent(event);
+}
+
+void CellItem::onDoubleClick()
+{
+    // // 尝试从场景的视图获取 QWidget*
+    // QWidget* parentWidget = nullptr;
+    // if (scene()) {
+    //     QList<QGraphicsView*> views = scene()->views();
+    //     if (!views.isEmpty()) {
+    //         parentWidget = static_cast<QWidget*>(views.first());
+    //     }
+    // }
+
+    // // 如果仍然没有有效的 QWidget*，使用 nullptr
+    // if (parentWidget) {
+    //     // 使用获取到的父窗口创建并显示设置对话框
+    //     Dialogs dialog(this, parentWidget);
+    //     dialog.exec();
+    // } else {
+    //     // 如果没有有效的父窗口，也可以直接显示对话框
+    //     Dialogs dialog(nullptr);
+    //     dialog.exec();
+    // }
+    Dialogs dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        const ComponentInfo& info = dialog.currentInfo;
+        setSize(QSizeF(info.width, info.height));
+        // 不再调用 loadFromFile 或 saveToFile
+    }
+}
+
+QVariant CellItem::itemChange(GraphicsItemChange change, const QVariant &value) {
+    if (change == ItemPositionChange && scene()) {
+        QPointF newPos = value.toPointF();
+        QRectF sceneRect = scene()->sceneRect();
+        // 限制 CellItem 在场景边界内
+        qreal x = qMax(sceneRect.left(), qMin(newPos.x(), sceneRect.right() - m_size.width()));
+        qreal y = qMax(sceneRect.top(), qMin(newPos.y(), sceneRect.bottom() - m_size.height()));
+        return QPointF(x, y);
+    }
+    return QGraphicsItem::itemChange(change, value);
+}
+
+void CellItem::updateConnector(int index, const QString& side, qreal percentage, qreal x, qreal y) {
+    // if (index < 0 || index >= m_connectors.size() || index >= m_pinItems.size()) {
+    //     qWarning() << "Invalid index for updateConnector: index=" << index
+    //                << ", connectors=" << m_connectors.size()
+    //                << ", pinItems=" << m_pinItems.size();
+    //     return;
+    // }
+
+    // m_connectors[index].side = side;
+    // m_connectors[index].percentage = percentage;
+
+    // PinItem* pinItem = m_pinItems[index];
+    // if (!pinItem) {
+    //     qWarning() << "Null pinItem at index" << index;
+    //     return;
+    // }
+
+    // // 更新 PinItem 位置
+    // QPointF newPos = m_connectors[index].calculatePos(m_size, connectorSize);
+    // pinItem->setPos(newPos);
+
+    // qDebug() << "Updated connector: index=" << index << ", side=" << side
+    //          << ", percentage=" << percentage << ", pos=" << newPos;
+    // update();
+    if (index >= 0 && index < m_connectors.size()) {
+        m_connectors[index].side = side;
+        m_connectors[index].percentage = percentage;
+        m_connectors[index].x = x;
+        m_connectors[index].y = y;
+        if (index < m_pinItems.size() && m_pinItems[index]) {
+            m_pinItems[index]->updateConnector(m_connectors[index].id, x, y);
+            m_pinItems[index]->setPos(x, y);
+        }
+        update();
+        qDebug() << "Updated connector: index=" << index << ", id=" << m_connectors[index].id << ", x=" << x << ", y=" << y;
+    } else {
+        qWarning() << "Invalid connector index:" << index;
+    }
 }

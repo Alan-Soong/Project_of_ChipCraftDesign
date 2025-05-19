@@ -40,27 +40,50 @@ template <> constexpr inline auto Dialogs::qt_create_metaobjectdata<qt_meta_tag_
     namespace QMC = QtMocConstants;
     QtMocHelpers::StringRefStorage qt_stringData {
         "Dialogs",
-        "saveSetting",
+        "settingsSaved",
         "",
+        "ComponentInfo",
+        "info",
+        "pinMoved",
+        "PinItem*",
+        "pin",
+        "saveSetting",
         "on_nameEdit_textEdited",
         "arg1",
         "on_saveButton_clicked",
         "on_colorCombo_activated",
-        "index"
+        "index",
+        "on_addPinButton_clicked",
+        "on_pinSceneClicked",
+        "pos"
     };
 
     QtMocHelpers::UintData qt_methods {
+        // Signal 'settingsSaved'
+        QtMocHelpers::SignalData<void(const ComponentInfo &)>(1, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 3, 4 },
+        }}),
+        // Signal 'pinMoved'
+        QtMocHelpers::SignalData<void(PinItem *)>(5, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 6, 7 },
+        }}),
         // Slot 'saveSetting'
-        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'on_nameEdit_textEdited'
-        QtMocHelpers::SlotData<void(const QString &)>(3, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 4 },
+        QtMocHelpers::SlotData<void(const QString &)>(9, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 10 },
         }}),
         // Slot 'on_saveButton_clicked'
-        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'on_colorCombo_activated'
-        QtMocHelpers::SlotData<void(int)>(6, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 7 },
+        QtMocHelpers::SlotData<void(int)>(12, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 13 },
+        }}),
+        // Slot 'on_addPinButton_clicked'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'on_pinSceneClicked'
+        QtMocHelpers::SlotData<void(const QPointF &)>(15, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QPointF, 16 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -85,12 +108,22 @@ void Dialogs::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, voi
     auto *_t = static_cast<Dialogs *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->saveSetting(); break;
-        case 1: _t->on_nameEdit_textEdited((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
-        case 2: _t->on_saveButton_clicked(); break;
-        case 3: _t->on_colorCombo_activated((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 0: _t->settingsSaved((*reinterpret_cast< std::add_pointer_t<ComponentInfo>>(_a[1]))); break;
+        case 1: _t->pinMoved((*reinterpret_cast< std::add_pointer_t<PinItem*>>(_a[1]))); break;
+        case 2: _t->saveSetting(); break;
+        case 3: _t->on_nameEdit_textEdited((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
+        case 4: _t->on_saveButton_clicked(); break;
+        case 5: _t->on_colorCombo_activated((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 6: _t->on_addPinButton_clicked(); break;
+        case 7: _t->on_pinSceneClicked((*reinterpret_cast< std::add_pointer_t<QPointF>>(_a[1]))); break;
         default: ;
         }
+    }
+    if (_c == QMetaObject::IndexOfMethod) {
+        if (QtMocHelpers::indexOfMethod<void (Dialogs::*)(const ComponentInfo & )>(_a, &Dialogs::settingsSaved, 0))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (Dialogs::*)(PinItem * )>(_a, &Dialogs::pinMoved, 1))
+            return;
     }
 }
 
@@ -113,15 +146,27 @@ int Dialogs::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 4)
+        if (_id < 8)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 4;
+        _id -= 8;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 4)
+        if (_id < 8)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 4;
+        _id -= 8;
     }
     return _id;
+}
+
+// SIGNAL 0
+void Dialogs::settingsSaved(const ComponentInfo & _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 0, nullptr, _t1);
+}
+
+// SIGNAL 1
+void Dialogs::pinMoved(PinItem * _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 1, nullptr, _t1);
 }
 QT_WARNING_POP

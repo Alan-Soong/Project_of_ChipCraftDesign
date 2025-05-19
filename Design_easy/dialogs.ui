@@ -34,6 +34,19 @@
      <property name="formAlignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>
      </property>
+     <item row="0" column="0">
+      <widget class="QLabel" name="name">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>名称:</string>
+       </property>
+      </widget>
+     </item>
      <item row="0" column="1">
       <widget class="QLineEdit" name="nameEdit">
        <property name="sizePolicy">
@@ -116,7 +129,7 @@
        </property>
       </widget>
      </item>
-     <item row="4" column="0" colspan="2">
+     <item row="5" column="0" colspan="2">
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
         <widget class="QPushButton" name="saveButton">
@@ -146,33 +159,44 @@
        </item>
       </layout>
      </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="name">
+     <item row="4" column="0" colspan="2">
+      <widget class="QListView" name="listView"/>
+     </item>
+    </layout>
+   </item>
+   <item row="0" column="1">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QGraphicsView" name="pinGraphicsView"/>
+     </item>
+     <item>
+      <widget class="QComboBox" name="sideCombo">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="percentageSpin">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="addPinButton">
        <property name="text">
-        <string>名称:</string>
+        <string>添加端口</string>
        </property>
       </widget>
      </item>
     </layout>
-   </item>
-   <item row="0" column="1">
-    <widget class="QListView" name="listView">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0" colspan="2">
-    <widget class="QListView" name="listView_2"/>
    </item>
   </layout>
  </widget>

@@ -1,4 +1,4 @@
-QT       += core gui
+QT += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -13,17 +13,22 @@ SOURCES += \
     canvasview.cpp \
     cellitem.cpp \
     connectionline.cpp \
+    dialogs.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    settingdialog.cpp
 
 HEADERS += \
     canvasscene.h \
     canvasview.h \
     cellitem.h \
     connectionline.h \
-    mainwindow.h
+    dialogs.h \
+    mainwindow.h \
+    settingdialog.h
 
 FORMS += \
+    dialogs.ui \
     mainwindow.ui
 
 # Default rules for deployment.

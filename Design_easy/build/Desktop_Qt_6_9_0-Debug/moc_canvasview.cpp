@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../../canvasview.h"
+#include "../../../Project_of_ChipCraftDesign_yzx_Design_easy_/Design_easy/canvasview.h"
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>

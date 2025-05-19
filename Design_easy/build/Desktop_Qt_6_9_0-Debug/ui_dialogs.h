@@ -14,13 +14,16 @@
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QDialog>
+#include <QtWidgets/QDoubleSpinBox>
 #include <QtWidgets/QFormLayout>
+#include <QtWidgets/QGraphicsView>
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QListView>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QSpinBox>
+#include <QtWidgets/QVBoxLayout>
 
 QT_BEGIN_NAMESPACE
 
@@ -29,6 +32,7 @@ class Ui_Dialogs
 public:
     QFormLayout *formLayout_2;
     QFormLayout *formLayout;
+    QLabel *name;
     QLineEdit *nameEdit;
     QLabel *color;
     QComboBox *colorCombo;
@@ -38,9 +42,12 @@ public:
     QHBoxLayout *horizontalLayout;
     QPushButton *saveButton;
     QPushButton *cancelButton;
-    QLabel *name;
     QListView *listView;
-    QListView *listView_2;
+    QVBoxLayout *verticalLayout;
+    QGraphicsView *pinGraphicsView;
+    QComboBox *sideCombo;
+    QDoubleSpinBox *percentageSpin;
+    QPushButton *addPinButton;
 
     void setupUi(QDialog *Dialogs)
     {
@@ -60,6 +67,13 @@ public:
         formLayout->setRowWrapPolicy(QFormLayout::RowWrapPolicy::DontWrapRows);
         formLayout->setLabelAlignment(Qt::AlignmentFlag::AlignCenter);
         formLayout->setFormAlignment(Qt::AlignmentFlag::AlignCenter);
+        name = new QLabel(Dialogs);
+        name->setObjectName("name");
+        sizePolicy.setHeightForWidth(name->sizePolicy().hasHeightForWidth());
+        name->setSizePolicy(sizePolicy);
+
+        formLayout->setWidget(0, QFormLayout::ItemRole::LabelRole, name);
+
         nameEdit = new QLineEdit(Dialogs);
         nameEdit->setObjectName("nameEdit");
         sizePolicy.setHeightForWidth(nameEdit->sizePolicy().hasHeightForWidth());
@@ -120,29 +134,44 @@ public:
         horizontalLayout->addWidget(cancelButton);
 
 
-        formLayout->setLayout(4, QFormLayout::ItemRole::SpanningRole, horizontalLayout);
+        formLayout->setLayout(5, QFormLayout::ItemRole::SpanningRole, horizontalLayout);
 
-        name = new QLabel(Dialogs);
-        name->setObjectName("name");
-        sizePolicy.setHeightForWidth(name->sizePolicy().hasHeightForWidth());
-        name->setSizePolicy(sizePolicy);
+        listView = new QListView(Dialogs);
+        listView->setObjectName("listView");
 
-        formLayout->setWidget(0, QFormLayout::ItemRole::LabelRole, name);
+        formLayout->setWidget(4, QFormLayout::ItemRole::SpanningRole, listView);
 
 
         formLayout_2->setLayout(0, QFormLayout::ItemRole::LabelRole, formLayout);
 
-        listView = new QListView(Dialogs);
-        listView->setObjectName("listView");
-        sizePolicy.setHeightForWidth(listView->sizePolicy().hasHeightForWidth());
-        listView->setSizePolicy(sizePolicy);
+        verticalLayout = new QVBoxLayout();
+        verticalLayout->setObjectName("verticalLayout");
+        pinGraphicsView = new QGraphicsView(Dialogs);
+        pinGraphicsView->setObjectName("pinGraphicsView");
 
-        formLayout_2->setWidget(0, QFormLayout::ItemRole::FieldRole, listView);
+        verticalLayout->addWidget(pinGraphicsView);
 
-        listView_2 = new QListView(Dialogs);
-        listView_2->setObjectName("listView_2");
+        sideCombo = new QComboBox(Dialogs);
+        sideCombo->setObjectName("sideCombo");
+        sizePolicy.setHeightForWidth(sideCombo->sizePolicy().hasHeightForWidth());
+        sideCombo->setSizePolicy(sizePolicy);
 
-        formLayout_2->setWidget(1, QFormLayout::ItemRole::SpanningRole, listView_2);
+        verticalLayout->addWidget(sideCombo);
+
+        percentageSpin = new QDoubleSpinBox(Dialogs);
+        percentageSpin->setObjectName("percentageSpin");
+        sizePolicy.setHeightForWidth(percentageSpin->sizePolicy().hasHeightForWidth());
+        percentageSpin->setSizePolicy(sizePolicy);
+
+        verticalLayout->addWidget(percentageSpin);
+
+        addPinButton = new QPushButton(Dialogs);
+        addPinButton->setObjectName("addPinButton");
+
+        verticalLayout->addWidget(addPinButton);
+
+
+        formLayout_2->setLayout(0, QFormLayout::ItemRole::FieldRole, verticalLayout);
 
 
         retranslateUi(Dialogs);
@@ -153,6 +182,7 @@ public:
     void retranslateUi(QDialog *Dialogs)
     {
         Dialogs->setWindowTitle(QCoreApplication::translate("Dialogs", "Dialogs", nullptr));
+        name->setText(QCoreApplication::translate("Dialogs", "\345\220\215\347\247\260:", nullptr));
         color->setText(QCoreApplication::translate("Dialogs", "\351\242\234\350\211\262:", nullptr));
         colorCombo->setItemText(0, QString());
         colorCombo->setItemText(1, QCoreApplication::translate("Dialogs", "blue", nullptr));
@@ -164,7 +194,7 @@ public:
         checkBox->setText(QCoreApplication::translate("Dialogs", "\345\220\257\347\224\250\350\260\203\346\225\264\345\244\247\345\260\217", nullptr));
         saveButton->setText(QCoreApplication::translate("Dialogs", "\344\277\235\345\255\230", nullptr));
         cancelButton->setText(QCoreApplication::translate("Dialogs", "\345\217\226\346\266\210", nullptr));
-        name->setText(QCoreApplication::translate("Dialogs", "\345\220\215\347\247\260:", nullptr));
+        addPinButton->setText(QCoreApplication::translate("Dialogs", "\346\267\273\345\212\240\347\253\257\345\217\243", nullptr));
     } // retranslateUi
 
 };

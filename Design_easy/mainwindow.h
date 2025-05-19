@@ -7,6 +7,11 @@
 #include "canvasview.h"
 #include "canvasscene.h"
 
+#include <QString>
+#include <QMessageBox>
+#include <QDir>
+#include <QFile>
+
 namespace Ui {
 class MainWindow;
 }
@@ -27,6 +32,13 @@ public slots:
     void on_deleteButton_clicked();
 
     // void setupConnections();
+
+private slots:
+    void on_actionhideLeftDock_triggered();
+
+    void on_actionsetLeftDock_triggered();
+
+    void on_actionsave_triggered();
 
 private:
     Ui::MainWindow *ui;
