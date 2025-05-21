@@ -1,9 +1,0 @@
-name: 
-color: 
-width: 180
-height: 160
-pins:
-  pin_1: side=, percentage=0, size=10
-  pin_2: side=, percentage=0, size=10
-  pin_3: side=, percentage=0, size=10
-  pin_4: side=, percentage=0, size=10

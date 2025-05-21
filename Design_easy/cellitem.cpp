@@ -51,37 +51,6 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     }
 }
 
-// void CellItem::setSize(const QSizeF& size)
-// {
-//     prepareGeometryChange();
-//     m_size = size;
-//     if (m_pinItems.size() != m_connectors.size()) {
-//         qWarning() << "m_pinItems and m_connectors out of sync in setSize: pinItems=" << m_pinItems.size()
-//         << ", connectors=" << m_connectors.size();
-//     }
-//     int count = qMin(m_pinItems.size(), m_connectors.size());
-//     for (int i = 0; i < count; ++i) {
-//         if (i >= m_pinItems.size() || i >= m_connectors.size()) {
-//             qWarning() << "Index out of range in setSize: i=" << i << ", pinItems=" << m_pinItems.size()
-//             << ", connectors=" << m_connectors.size();
-//             break;
-//         }
-//         PinItem* pinItem = m_pinItems[i];
-//         Connector& conn = m_connectors[i];
-//         if (!pinItem) {
-//             qWarning() << "Null pinItem at index" << i << "in setSize";
-//             continue;
-//         }
-//         qreal x = qMax(0.0, qMin(conn.pos.x(), m_size.width() - pinItem->boundingRect().width()));
-//         qreal y = qMax(0.0, qMin(conn.pos.y(), m_size.height() - pinItem->boundingRect().height()));
-//         conn.pos = QPointF(x, y);
-//         pinItem->setPos(x, y);
-//     }
-//     update();
-//     qDebug() << "setSize completed: size=" << m_size << ", pinItems=" << m_pinItems.size()
-//              << ", connectors=" << m_connectors.size();
-// }
-
 void CellItem::setSize(const QSizeF& size) {
     prepareGeometryChange();
     m_size = size;
@@ -116,21 +85,28 @@ QSizeF CellItem::size() const
 }
 
 QPointF CellItem::Connector::calculatePos(const QSizeF& cellSize, qreal pinSize) const {
-    qreal x = 0, y = 0;
-    if (side == "top") {
-        x = cellSize.width() * percentage / 100.0 - pinSize / 2;
-        y = 0;
-    } else if (side == "bottom") {
-        x = cellSize.width() * percentage / 100.0 - pinSize / 2;
-        y = cellSize.height() - pinSize;
-    } else if (side == "left") {
-        x = 0;
-        y = cellSize.height() * percentage / 100.0 - pinSize / 2;
-    } else if (side == "right") {
-        x = cellSize.width() - pinSize;
-        y = cellSize.height() * percentage / 100.0 - pinSize / 2;
+    qreal posX = x, posY = y;
+
+    // 如果是自定义位置，直接使用保存的x,y坐标
+    if (side == "custom") {
+        return QPointF(posX, posY);
     }
-    return QPointF(x, y);
+
+    // 否则根据边缘和百分比计算位置
+    if (side == "top") {
+        posX = cellSize.width() * percentage / 100.0 - pinSize / 2;
+        posY = 0;
+    } else if (side == "bottom") {
+        posX = cellSize.width() * percentage / 100.0 - pinSize / 2;
+        posY = cellSize.height() - pinSize;
+    } else if (side == "left") {
+        posX = 0;
+        posY = cellSize.height() * percentage / 100.0 - pinSize / 2;
+    } else if (side == "right") {
+        posX = cellSize.width() - pinSize;
+        posY = cellSize.height() * percentage / 100.0 - pinSize / 2;
+    }
+    return QPointF(posX, posY);
 }
 
 void CellItem::addConnector(const QString& side, qreal percentage, qreal size, const QString& id, qreal x, qreal y) {
@@ -138,16 +114,6 @@ void CellItem::addConnector(const QString& side, qreal percentage, qreal size, c
         qWarning() << "No scene available, cannot add connector:" << id;
         return;
     }
-    // percentage = qBound(0.0, percentage, 100.0);
-    // Connector connector(side, percentage, id, x, y);
-    // m_connectors.append(connector);
-    // PinItem* pinItem = new PinItem(this, size, this);
-    // pinItem->setBrush(Qt::darkBlue);
-    // pinItem->setPen(Qt::NoPen);
-    // QPointF pos = connector.calculatePos(m_size, size);
-    // pinItem->setPos(x, y);
-    // m_pinItems.append(pinItem);
-    // scene()->addItem(pinItem);
     percentage = qBound(0.0, percentage, 100.0);
     Connector connector(side, percentage, id, x, y);
     m_connectors.append(connector);
@@ -175,8 +141,6 @@ bool CellItem::isOnConnector(const QPointF& pos, Connector& connector) const
 {
     for (const Connector& conn : m_connectors) {
         QPointF connPos = conn.calculatePos(m_size, connectorSize);
-        // QRectF connRect(conn.pos.x() - connectorSize / 2, conn.pos.y() - connectorSize / 2,
-                        // connectorSize, connectorSize);
         QRectF connRect(connPos.x(), connPos.y(), connectorSize, connectorSize);
         if (connRect.contains(pos)) {
             connector = conn;
@@ -228,8 +192,7 @@ void CellItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 
     if (event->button() == Qt::LeftButton && isSelected()) {
         // 检测是否在连接点上
-        // Connector connector(QPointF(), "");
-        Connector connector; // 使用默认构造函数
+        Connector connector;
         if (isOnConnector(event->pos(), connector)) {
             // 通知场景开始连线（通过自定义事件或信号）
             scene()->setProperty("startItem", QVariant::fromValue(this));
@@ -278,8 +241,6 @@ void CellItem::restrictSizeAndPosition(QSizeF& size, QPointF& pos)
     // 确保尺寸不小于最小值（20x20 像素）
     size.setWidth(qMax(20.0, size.width()));
     size.setHeight(qMax(20.0, size.height()));
-    // prepareGeometryChange();
-    // m_size = size;
 
     // 限制位置在场景边界内
     QRectF sceneRect = scene()->sceneRect();
@@ -289,8 +250,6 @@ void CellItem::restrictSizeAndPosition(QSizeF& size, QPointF& pos)
     }
     pos.setX(qBound(sceneRect.left(), pos.x(), sceneRect.right() - size.width()));
     pos.setY(qBound(sceneRect.top(), pos.y(), sceneRect.bottom() - size.height()));
-    // setPos(pos);
-    // update();
 
     // 合并几何更新
     prepareGeometryChange();
@@ -407,30 +366,10 @@ void CellItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
 
 void CellItem::onDoubleClick()
 {
-    // // 尝试从场景的视图获取 QWidget*
-    // QWidget* parentWidget = nullptr;
-    // if (scene()) {
-    //     QList<QGraphicsView*> views = scene()->views();
-    //     if (!views.isEmpty()) {
-    //         parentWidget = static_cast<QWidget*>(views.first());
-    //     }
-    // }
-
-    // // 如果仍然没有有效的 QWidget*，使用 nullptr
-    // if (parentWidget) {
-    //     // 使用获取到的父窗口创建并显示设置对话框
-    //     Dialogs dialog(this, parentWidget);
-    //     dialog.exec();
-    // } else {
-    //     // 如果没有有效的父窗口，也可以直接显示对话框
-    //     Dialogs dialog(nullptr);
-    //     dialog.exec();
-    // }
     Dialogs dialog(this);
     if (dialog.exec() == QDialog::Accepted) {
         const ComponentInfo& info = dialog.currentInfo;
         setSize(QSizeF(info.width, info.height));
-        // 不再调用 loadFromFile 或 saveToFile
     }
 }
 
@@ -447,29 +386,6 @@ QVariant CellItem::itemChange(GraphicsItemChange change, const QVariant &value) 
 }
 
 void CellItem::updateConnector(int index, const QString& side, qreal percentage, qreal x, qreal y) {
-    // if (index < 0 || index >= m_connectors.size() || index >= m_pinItems.size()) {
-    //     qWarning() << "Invalid index for updateConnector: index=" << index
-    //                << ", connectors=" << m_connectors.size()
-    //                << ", pinItems=" << m_pinItems.size();
-    //     return;
-    // }
-
-    // m_connectors[index].side = side;
-    // m_connectors[index].percentage = percentage;
-
-    // PinItem* pinItem = m_pinItems[index];
-    // if (!pinItem) {
-    //     qWarning() << "Null pinItem at index" << index;
-    //     return;
-    // }
-
-    // // 更新 PinItem 位置
-    // QPointF newPos = m_connectors[index].calculatePos(m_size, connectorSize);
-    // pinItem->setPos(newPos);
-
-    // qDebug() << "Updated connector: index=" << index << ", side=" << side
-    //          << ", percentage=" << percentage << ", pos=" << newPos;
-    // update();
     if (index >= 0 && index < m_connectors.size()) {
         m_connectors[index].side = side;
         m_connectors[index].percentage = percentage;

@@ -90,4 +90,6 @@ private:
 // 注册 Connector 到 Qt 元对象系统
 Q_DECLARE_METATYPE(CellItem::Connector)
 
+
+
 #endif // CELLITEM_H

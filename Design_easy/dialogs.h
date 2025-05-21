@@ -57,6 +57,7 @@ public:
     qreal getX() const { return m_x; }
     qreal getY() const { return m_y; }
     void setParentRect(QGraphicsItem* parentRect) { this->parentRect = parentRect; } // 新增 setter
+    QPointF restrictToEdge(const QPointF& pos, qreal width, qreal height, QString& side, qreal& percentage) const;
 protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent* event) override;
@@ -68,7 +69,6 @@ private:
     QString m_id;
     qreal m_x;
     qreal m_y;
-    QPointF restrictToEdge(const QPointF& pos, qreal width, qreal height, QString& side, qreal& percentage) const;
 };
 
 
@@ -80,6 +80,7 @@ public:
     explicit Dialogs(QGraphicsItem* item, QWidget *parent = nullptr);
     ComponentInfo currentInfo;
     void on_pinMoved(PinItem* pin); // 处理引脚移动
+    // void on_pinMoved(PinItem* pin); // 处理引脚移动
     // void accept() override;
     // void reject() override;
     ~Dialogs();
@@ -104,6 +105,8 @@ private slots:
 
     void on_pinSceneClicked(const QPointF& pos);
 
+    void on_removePinButton_clicked();
+
 private:
     QGraphicsItem* targetItem = nullptr;
     Ui::Dialogs *ui;
@@ -116,9 +119,13 @@ private:
     QList<PinItem*> pinItems; // 存储引脚的图形项
     QGraphicsScene* pinScene;
     bool m_addingPin = false; // 新增：跟踪添加引脚模式
+    PinItem* selectedPin = nullptr; // 新增：跟踪选中的引脚
 
-    void addPin(const QString& side, qreal percentage, qreal size, const QString& id);
+
+    // void addPin(const QString& side, qreal percentage, qreal size, const QString& id);
+    void addPin(const QString& side, qreal percentage, qreal size, const QString& id, qreal x = 0, qreal y = 0);
     void updatePins();
+    void removePin(const QString& id); // 新增：删除引脚方法
     void saveToFile(const QString& defaultName); // 声明
     void loadFromFile(const QString& defaultName); // 声明
     void setupPinScene();

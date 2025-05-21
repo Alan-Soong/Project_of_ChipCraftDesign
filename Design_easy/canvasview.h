@@ -7,11 +7,13 @@
 #include <QKeyEvent>
 #include <QWheelEvent>
 
+class QGraphicsScene;
+
 class CanvasView : public QGraphicsView {
     Q_OBJECT
 
 public:
-    explicit CanvasView(QWidget *parent = nullptr);
+    explicit CanvasView(QGraphicsScene *scene, QWidget *parent = nullptr);
     ~CanvasView();
 
 protected:

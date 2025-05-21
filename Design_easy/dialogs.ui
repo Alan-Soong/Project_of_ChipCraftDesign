@@ -196,6 +196,13 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QPushButton" name="removePinButton">
+       <property name="text">
+        <string>移除引脚</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
   </layout>

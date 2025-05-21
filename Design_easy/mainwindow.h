@@ -1,49 +1,55 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#pragma once
-
 #include <QMainWindow>
-#include "canvasview.h"
-#include "canvasscene.h"
+#include <QList>
+#include <QUndoStack>
 
-#include <QString>
-#include <QMessageBox>
-#include <QDir>
-#include <QFile>
+class CanvasScene;
+class CanvasView;
+class CellItem;
 
-namespace Ui {
-class MainWindow;
-}
+QT_BEGIN_NAMESPACE
+namespace Ui { class MainWindow; }
+QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-public slots:
-    void on_addRectangleButton_clicked();
-    void on_selectButton_clicked();
-    void on_undoButton_clicked();
-    void on_redoButton_clicked();
-    void on_deleteButton_clicked();
-
-    // void setupConnections();
-
 private slots:
-    void on_actionhideLeftDock_triggered();
+    void newFile();
+    void openFile();
+    void saveFile();
+    void saveFileAs();
+    void exportFiles();
 
-    void on_actionsetLeftDock_triggered();
+    void on_addRectangleButton_clicked();
 
-    void on_actionsave_triggered();
+    void on_selectButton_clicked();
+
+    void on_undoButton_clicked();
+
+    void on_redoButton_clicked();
+
+    void on_deleteButton_clicked();
 
 private:
     Ui::MainWindow *ui;
-    CanvasView *m_canvasView;
-    CanvasScene *m_canvasScene;
-};
-#endif // MAINWINDOW_H
+    CanvasScene *scene;
+    CanvasView *view;
+    QString currentFilePath;
+    QUndoStack *undoStack; // 用于撤销和重做
 
+    bool generateMacroFile(const QString& filePath, const QList<CellItem*>& cellItems);
+    bool generateDesignFile(const QString& filePath, const QList<CellItem*>& cellItems);
+};
+
+
+
+
+#endif // MAINWINDOW_H

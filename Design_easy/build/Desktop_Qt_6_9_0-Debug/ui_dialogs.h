@@ -48,6 +48,7 @@ public:
     QComboBox *sideCombo;
     QDoubleSpinBox *percentageSpin;
     QPushButton *addPinButton;
+    QPushButton *removePinButton;
 
     void setupUi(QDialog *Dialogs)
     {
@@ -170,6 +171,11 @@ public:
 
         verticalLayout->addWidget(addPinButton);
 
+        removePinButton = new QPushButton(Dialogs);
+        removePinButton->setObjectName("removePinButton");
+
+        verticalLayout->addWidget(removePinButton);
+
 
         formLayout_2->setLayout(0, QFormLayout::ItemRole::FieldRole, verticalLayout);
 
@@ -195,6 +201,7 @@ public:
         saveButton->setText(QCoreApplication::translate("Dialogs", "\344\277\235\345\255\230", nullptr));
         cancelButton->setText(QCoreApplication::translate("Dialogs", "\345\217\226\346\266\210", nullptr));
         addPinButton->setText(QCoreApplication::translate("Dialogs", "\346\267\273\345\212\240\347\253\257\345\217\243", nullptr));
+        removePinButton->setText(QCoreApplication::translate("Dialogs", "\347\247\273\351\231\244\345\274\225\350\204\232", nullptr));
     } // retranslateUi
 
 };
