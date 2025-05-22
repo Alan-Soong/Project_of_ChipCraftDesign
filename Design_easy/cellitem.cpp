@@ -380,6 +380,33 @@ bool CellItem::isOnEdgeOrCorner(const QPointF &pos, ResizeEdge &edge) const
     return edge != None;
 }
 
+// 辅助函数：限制尺寸（仅用于调整大小）
+void CellItem::restrictSize(QSizeF& size) {
+    // 确保尺寸不小于最小值（20x20 像素）
+    size.setWidth(qMax(20.0, size.width()));
+    size.setHeight(qMax(20.0, size.height()));
+    prepareGeometryChange();
+    m_size = size;
+    update();
+}
+
+// 辅助函数：限制位置（仅用于拖动）
+void CellItem::restrictPosition(QPointF& pos) {
+    if (!scene()) {
+        qDebug() << "场景无效，无法限制位置";
+        return;
+    }
+    QRectF sceneRect = scene()->sceneRect();
+    if (sceneRect.isEmpty()) {
+        qDebug() << "场景矩形无效";
+        return;
+    }
+    pos.setX(qBound(sceneRect.left(), pos.x(), sceneRect.right() - m_size.width()));
+    pos.setY(qBound(sceneRect.top(), pos.y(), sceneRect.bottom() - m_size.height()));
+    setPos(pos);
+    update();
+}
+
 void CellItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     if (!event || !scene()) {
@@ -455,9 +482,7 @@ void CellItem::restrictSizeAndPosition(QSizeF& size, QPointF& pos)
     update();
 }
 
-// 处理鼠标移动事件，支持拖动、调整大小和连线
-void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
-{
+void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     if (!event || !scene()) {
         qDebug() << "无效的事件或场景";
         return;
@@ -470,26 +495,21 @@ void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         } else if (m_resizeEdge != None) {
             // 调整矩形大小（边框或角点）
             QRectF rect = boundingRect();
-            QPointF scenePos = event->scenePos();
-            QPointF localPos = mapFromScene(scenePos);
+            QPointF localPos = mapFromScene(event->scenePos());
             QSizeF newSize = m_size;
             QPointF newPos = pos();
 
             switch (m_resizeEdge) {
             case Left: // 调整左边，保持右边固定
                 newSize.setWidth(rect.width() - localPos.x());
-                if (newSize.width() > 20) {
-                    newPos.setX(scenePos.x());
-                }
+                newPos.setX(event->scenePos().x());
                 break;
             case Right: // 调整右边，保持左边固定
                 newSize.setWidth(localPos.x());
                 break;
             case Top: // 调整上边，保持下边固定
                 newSize.setHeight(rect.height() - localPos.y());
-                if (newSize.height() > 20) {
-                    newPos.setY(scenePos.y());
-                }
+                newPos.setY(event->scenePos().y());
                 break;
             case Bottom: // 调整下边，保持上边固定
                 newSize.setHeight(localPos.y());
@@ -497,24 +517,18 @@ void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             case TopLeft: // 调整左上角，保持右下角固定
                 newSize.setWidth(rect.width() - localPos.x());
                 newSize.setHeight(rect.height() - localPos.y());
-                if (newSize.width() > 20 && newSize.height() > 20) {
-                    newPos.setX(scenePos.x());
-                    newPos.setY(scenePos.y());
-                }
+                newPos.setX(event->scenePos().x());
+                newPos.setY(event->scenePos().y());
                 break;
             case TopRight: // 调整右上角，保持左下角固定
                 newSize.setWidth(localPos.x());
                 newSize.setHeight(rect.height() - localPos.y());
-                if (newSize.height() > 20) {
-                    newPos.setY(scenePos.y());
-                }
+                newPos.setY(event->scenePos().y());
                 break;
             case BottomLeft: // 调整左下角，保持右上角固定
                 newSize.setWidth(rect.width() - localPos.x());
                 newSize.setHeight(localPos.y());
-                if (newSize.width() > 20) {
-                    newPos.setX(scenePos.x());
-                }
+                newPos.setX(event->scenePos().x());
                 break;
             case BottomRight: // 调整右下角，保持左上角固定
                 newSize.setWidth(localPos.x());
@@ -524,15 +538,27 @@ void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
                 break;
             }
 
-            restrictSizeAndPosition(newSize, newPos);
+            // 限制大小
+            restrictSize(newSize);
+            // 更新引脚位置
+            setSize(newSize); // setSize 会更新引脚位置
+            // 调整位置（仅对需要移动的边缘/角点）
+            if (m_resizeEdge == Left || m_resizeEdge == Top || m_resizeEdge == TopLeft ||
+                m_resizeEdge == TopRight || m_resizeEdge == BottomLeft) {
+                restrictPosition(newPos);
+            }
+            qDebug() << "调整大小，边：" << m_resizeEdge << ", 新大小：" << newSize << ", 新位置：" << pos();
+            event->accept();
         } else {
             // 拖动整个矩形
             QPointF newPos = event->scenePos() - m_dragOffset;
-            restrictSizeAndPosition(m_size, newPos);
+            restrictPosition(newPos);
+            qDebug() << "拖动，新位置：" << newPos;
+            event->accept();
         }
-        event->accept();
     }
-    QGraphicsItem::mouseMoveEvent(event);
+    // 避免调用基类的默认拖动行为
+    // QGraphicsItem::mouseMoveEvent(event);
 }
 
 // 处理鼠标释放事件，重置状态

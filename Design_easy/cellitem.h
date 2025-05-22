@@ -42,6 +42,9 @@ public:
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;  // 添加双击事件
 
+    void restrictSize(QSizeF& size);
+    void restrictPosition(QPointF& pos);
+
     // 连接点接口
     struct Connector {
         QString side; // "top", "bottom", "left", "right", "custom"
