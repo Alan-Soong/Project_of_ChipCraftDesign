@@ -69,6 +69,7 @@ private:
     QString m_id;
     qreal m_x;
     qreal m_y;
+
 };
 
 

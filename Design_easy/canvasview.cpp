@@ -93,24 +93,24 @@ void CanvasView::mouseMoveEvent(QMouseEvent *event)
 void CanvasView::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsView::drawBackground(painter, rect);
-
+    
     // 绘制网格
     const int gridSize = 20;
     const QRectF sceneRect = this->sceneRect();
-
+    
     qreal left = int(rect.left()) - (int(rect.left()) % gridSize);
     qreal top = int(rect.top()) - (int(rect.top()) % gridSize);
-
+    
     QVarLengthArray<QLineF, 100> lines;
-
+    
     for (qreal x = left; x < rect.right(); x += gridSize) {
         lines.append(QLineF(x, rect.top(), x, rect.bottom()));
     }
-
+    
     for (qreal y = top; y < rect.bottom(); y += gridSize) {
         lines.append(QLineF(rect.left(), y, rect.right(), y));
     }
-
+    
     painter->setPen(QPen(QColor(200, 200, 200), 0));
     painter->drawLines(lines.data(), lines.size());
 }

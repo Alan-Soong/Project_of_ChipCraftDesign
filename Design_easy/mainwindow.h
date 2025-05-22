@@ -48,8 +48,4 @@ private:
     bool generateMacroFile(const QString& filePath, const QList<CellItem*>& cellItems);
     bool generateDesignFile(const QString& filePath, const QList<CellItem*>& cellItems);
 };
-
-
-
-
 #endif // MAINWINDOW_H

@@ -1,43 +1,57 @@
-// #include "connectionline.h"
-
-// ConnectionLine::ConnectionLine() {}
-
 #include "connectionline.h"
 #include <QPen>
+#include <QGraphicsScene>
+#include <QDebug>
 
 ConnectionLine::ConnectionLine(CellItem* startItem, const CellItem::Connector& startConnector,
                                CellItem* endItem, const CellItem::Connector& endConnector,
                                QGraphicsItem* parent)
     : QGraphicsLineItem(parent),
-    m_startItem(startItem), m_startConnector(startConnector),
-    m_endItem(endItem), m_endConnector(endConnector)
+      m_startItem(startItem),
+      m_startConnector(startConnector),
+      m_endItem(endItem),
+      m_endConnector(endConnector)
 {
-    setPen(QPen(Qt::black, 2));
+    setPen(QPen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    setFlag(QGraphicsItem::ItemIsSelectable, true);
     updatePosition();
 }
 
 void ConnectionLine::updatePosition()
 {
-    // if (!m_startItem || !m_endItem) return;
+    if (!m_startItem || !m_endItem) {
+        qWarning() << "ConnectionLine::updatePosition: Invalid start or end item";
+        return;
+    }
 
-    // // 将连接点的局部坐标转换为场景坐标
-    // QPointF startPos = m_startItem->mapToScene(m_startConnector.pos);
-    // QPointF endPos = m_endItem->mapToScene(m_endConnector.pos);
-    // setLine(QLineF(startPos, endPos));
-    if (!m_startItem || !m_endItem) return;
-
-    // 获取引脚的局部坐标（相对于 CellItem）
-    const qreal pinSize = 10; // 与 CellItem 的引脚大小一致
-    QPointF startLocalPos = m_startConnector.calculatePos(m_startItem->size(), pinSize);
-    QPointF endLocalPos = m_endConnector.calculatePos(m_endItem->size(), pinSize);
-
-    // 将局部坐标转换为场景坐标
-    QPointF startPos = m_startItem->mapToScene(startLocalPos);
-    QPointF endPos = m_endItem->mapToScene(endLocalPos);
-
-    // 调整连线起点和终点，考虑引脚大小
-    startPos += QPointF(pinSize / 2, pinSize / 2); // 移动到引脚中心
-    endPos += QPointF(pinSize / 2, pinSize / 2);   // 移动到引脚中心
-
+    // 获取起始引脚的位置
+    QPointF startPos;
+    QPointF endPos;
+    
+    // 查找起始引脚
+    auto startPins = m_startItem->getPinItems();
+    auto startConnectors = m_startItem->getConnectors();
+    for (int i = 0; i < startConnectors.size() && i < startPins.size(); ++i) {
+        if (startConnectors[i].id == m_startConnector.id) {
+            QPointF pinCenter = startPins[i]->boundingRect().center() + startPins[i]->pos();
+            startPos = m_startItem->pos() + pinCenter;
+            break;
+        }
+    }
+    
+    // 查找结束引脚
+    auto endPins = m_endItem->getPinItems();
+    auto endConnectors = m_endItem->getConnectors();
+    for (int i = 0; i < endConnectors.size() && i < endPins.size(); ++i) {
+        if (endConnectors[i].id == m_endConnector.id) {
+            QPointF pinCenter = endPins[i]->boundingRect().center() + endPins[i]->pos();
+            endPos = m_endItem->pos() + pinCenter;
+            break;
+        }
+    }
+    
+    // 更新连线位置
     setLine(QLineF(startPos, endPos));
+    
+    qDebug() << "ConnectionLine updated: from" << startPos << "to" << endPos;
 }

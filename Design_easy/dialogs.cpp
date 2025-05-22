@@ -24,11 +24,11 @@ QVariant PinItem::itemChange(GraphicsItemChange change, const QVariant &value) {
         QPointF newPos = value.toPointF();
         QRectF rect = parentRect->boundingRect();
         qreal pinSize = boundingRect().width();
-
+        
         // 允许在整个芯片区域内自由放置引脚，不再限制只能在边缘
         qreal x = qBound(0.0, newPos.x(), rect.width() - pinSize);
         qreal y = qBound(0.0, newPos.y(), rect.height() - pinSize);
-
+        
         return QPointF(x, y);
     }
     return QGraphicsEllipseItem::itemChange(change, value);
@@ -54,7 +54,7 @@ QPointF PinItem::restrictToEdge(const QPointF& pos, qreal width, qreal height, Q
     qreal distRight = std::abs(x - width);
 
     qreal minDist = std::min({distTop, distBottom, distLeft, distRight});
-
+    
     // 如果距离边缘很近，则吸附到边缘
     if (minDist <= margin) {
         if (minDist == distTop) {
@@ -134,7 +134,7 @@ Dialogs::Dialogs(QGraphicsItem* item, QWidget *parent)
     connect(ui->nameEdit, &QLineEdit::textChanged, this, &Dialogs::on_nameEdit_textEdited);
     connect(ui->colorCombo, QOverload<int>::of(&QComboBox::activated), this, &Dialogs::on_colorCombo_activated);
     ui->pinGraphicsView->installEventFilter(this);
-
+    
     // 初始化边缘选择下拉框
     ui->sideCombo->clear();
     ui->sideCombo->addItem("top");
@@ -142,14 +142,19 @@ Dialogs::Dialogs(QGraphicsItem* item, QWidget *parent)
     ui->sideCombo->addItem("left");
     ui->sideCombo->addItem("right");
     ui->sideCombo->addItem("custom"); // 添加自定义位置选项
-
+    
     // 设置百分比范围
     ui->percentageSpin->setRange(0, 100);
     ui->percentageSpin->setValue(50);
-
+    
     currentInfo.width = 100;
     currentInfo.height = 100;
     setupPinScene();
+    
+    // 加载现有引脚信息
+    if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
+        updatePins();
+    }
 }
 
 Dialogs::~Dialogs()
@@ -231,14 +236,14 @@ void Dialogs::on_pinSceneClicked(const QPointF& pos) {
         if (!side.isEmpty()) {
             percentage = qBound(0.0, percentage, 100.0);
             QString id = QString("pin_%1").arg(currentInfo.pins.size() + 1);
-
+            
             // 对于自定义位置，直接使用点击坐标
             if (side == "custom") {
                 addPin(side, percentage, 10, id, x, y);
             } else {
                 addPin(side, percentage, 10, id);
             }
-
+            
             m_addingPin = false;
             ui->pinGraphicsView->setCursor(Qt::ArrowCursor);
             chipRect->setPen(QPen(Qt::black));
@@ -252,41 +257,58 @@ void Dialogs::on_pinSceneClicked(const QPointF& pos) {
 }
 
 void Dialogs::updatePinScene() {
+    // 保留chipRect，移除其他所有项
     for (QGraphicsItem* item : pinScene->items()) {
         if (item != chipRect) {
             pinScene->removeItem(item);
         }
     }
 
+    // 确保chipRect存在且尺寸正确
     if (!chipRect) {
         chipRect = new QGraphicsRectItem(0, 0, currentInfo.width, currentInfo.height);
         chipRect->setPen(QPen(Qt::black));
         chipRect->setBrush(Qt::lightGray);
         pinScene->addItem(chipRect);
+    } else {
+        chipRect->setRect(0, 0, currentInfo.width, currentInfo.height);
     }
 
+    // 从CellItem获取最新的引脚信息
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
         auto cellPinItems = cellItem->getPinItems();
         auto connectors = cellItem->getConnectors();
+        
+        // 清空当前引脚列表
         pinItems.clear();
+        
+        // 添加所有引脚到场景
         int count = qMin(cellPinItems.size(), connectors.size());
         for (int i = 0; i < count; ++i) {
             if (!cellPinItems[i]) {
                 qWarning() << "Null PinItem at index" << i;
                 continue;
             }
-            PinItem* pin = cellPinItems[i];
+            
+            // 创建新的PinItem用于对话框显示
+            PinItem* pin = new PinItem(chipRect, 10);
             pin->updateConnector(connectors[i].id, connectors[i].x, connectors[i].y);
             pin->setPos(connectors[i].x, connectors[i].y);
             pinScene->addItem(pin);
             pinItems.append(pin);
-            if (pin == selectedPin) {
+            
+            // 设置选中状态
+            if (selectedPin && selectedPin->getId() == connectors[i].id) {
                 pin->setBrush(QColor("red"));
+                selectedPin = pin; // 更新selectedPin指向新创建的引脚
             } else {
                 pin->setBrush(QColor("darkblue"));
             }
+            
             qDebug() << "Added PinItem to scene: id=" << connectors[i].id << ", x=" << connectors[i].x << ", y=" << connectors[i].y;
         }
+        
+        // 更新currentInfo中的引脚信息
         currentInfo.pins.clear();
         for (const auto& connector : connectors) {
             currentInfo.pins.append(CellItemNS::Connector(connector.side, connector.percentage, connector.id, connector.x, connector.y));
@@ -395,7 +417,7 @@ void Dialogs::on_colorCombo_activated(int index)
 void Dialogs::addPin(const QString& side, qreal percentage, qreal size, const QString& id, qreal x, qreal y) {
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
         int prevPinCount = cellItem->getPinItems().size();
-
+        
         // 如果是自定义位置且坐标已提供，则直接使用提供的坐标
         if (side == "custom" && x > 0 && y > 0) {
             // 使用提供的坐标
@@ -421,23 +443,14 @@ void Dialogs::addPin(const QString& side, qreal percentage, qreal size, const QS
                 y = chipHeight / 2 - size / 2;
             }
         }
-
+        
+        // 通过CellItem添加连接器
         cellItem->addConnector(side, percentage, size, id, x, y);
-        auto pinItemsList = cellItem->getPinItems();
-        if (pinItemsList.size() > prevPinCount && !pinItemsList.isEmpty()) {
-            PinItem* pinItem = pinItemsList.last();
-            pinItem->updateConnector(id, x, y);
-            pinItem->setParentRect(chipRect);
-            pinItems.append(pinItem);
-            pinScene->addItem(pinItem);
-            currentInfo.pins.append(CellItemNS::Connector(side, percentage, id, x, y));
-            qDebug() << "Added pin:" << id << " at side=" << side << ", percentage=" << percentage << ", x=" << x << ", y=" << y;
-        } else {
-            qWarning() << "Failed to add pin: no new PinItem added for" << id;
-        }
-        if (pinItems.size() != currentInfo.pins.size()) {
-            qWarning() << "Sync issue: pinItems=" << pinItems.size() << ", pins=" << currentInfo.pins.size();
-        }
+        
+        // 更新对话框中的引脚显示
+        updatePinScene();
+        
+        qDebug() << "Added pin:" << id << " at side=" << side << ", percentage=" << percentage << ", x=" << x << ", y=" << y;
     } else {
         qWarning() << "Target item is not a CellItem";
     }
@@ -450,54 +463,19 @@ void Dialogs::removePin(const QString& id) {
     }
 
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
-        auto connectors = cellItem->getConnectors();
-        auto pinItemsList = cellItem->getPinItems();
-        int index = -1;
-        for (int i = 0; i < connectors.size(); ++i) {
-            if (connectors[i].id == id) {
-                index = i;
-                break;
-            }
-        }
-        if (index >= 0 && index < pinItemsList.size()) {
-            // 从场景中移除引脚
-            if (pinItemsList[index] && pinItemsList[index]->scene()) {
-                pinItemsList[index]->scene()->removeItem(pinItemsList[index]);
-            }
-
-            // 删除引脚对象
-            delete pinItemsList[index];
-
-            // 从列表中移除引脚
-            pinItemsList.removeAt(index);
-            connectors.removeAt(index);
-
-            // 更新当前选中的引脚
+        // 使用CellItem的安全删除方法
+        if (cellItem->removeConnector(id)) {
+            // 删除成功，更新选中的引脚
             if (selectedPin && selectedPin->getId() == id) {
                 selectedPin = nullptr;
             }
-
-            // 从pinItems列表中移除
-            for (int i = 0; i < pinItems.size(); ++i) {
-                if (pinItems[i]->getId() == id) {
-                    pinItems.removeAt(i);
-                    break;
-                }
-            }
-
-            // 从currentInfo.pins中移除
-            for (int i = 0; i < currentInfo.pins.size(); ++i) {
-                if (currentInfo.pins[i].id == id) {
-                    currentInfo.pins.removeAt(i);
-                    break;
-                }
-            }
-
+            
+            // 更新对话框中的引脚显示
             updatePinScene();
             qDebug() << "Removed pin:" << id;
         } else {
-            qWarning() << "Pin id=" << id << " not found in CellItem or index out of range";
-            QMessageBox::warning(this, "错误", "未找到要删除的引脚");
+            qWarning() << "Failed to remove pin id=" << id;
+            QMessageBox::warning(this, "错误", "删除引脚失败");
         }
     } else {
         qWarning() << "Target item is not a CellItem";
@@ -520,84 +498,65 @@ void Dialogs::on_pinMoved(PinItem* pin) {
     QString id = pin->getId();
     qreal newX = pin->pos().x();
     qreal newY = pin->pos().y();
-
+    
     // 检查引脚是否靠近边缘，如果是则更新side和percentage
     QRectF rect = chipRect->boundingRect();
     qreal width = rect.width();
     qreal height = rect.height();
     QString newSide;
     qreal newPercentage;
-
+    
     QPointF adjustedPos = pin->restrictToEdge(pin->pos(), width, height, newSide, newPercentage);
-
+    
     // 如果引脚不在边缘附近，则使用自定义位置
     if (newSide.isEmpty()) {
         newSide = "custom";
         newPercentage = 0.0;
     }
-
+    
     if (id.isEmpty()) {
         qWarning() << "on_pinMoved: pin id is empty";
         return;
     }
 
-    bool found = false;
-    for (auto& connector : currentInfo.pins) {
-        if (connector.id == id) {
-            connector.side = newSide;
-            connector.percentage = newPercentage;
-            connector.x = newX;
-            connector.y = newY;
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
-        qWarning() << "Pin id=" << id << " not found in currentInfo.pins";
-    }
-
+    // 更新CellItem中的连接器
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
         auto connectors = cellItem->getConnectors();
-        auto pinItems = cellItem->getPinItems();
-        found = false;
-        for (int i = 0; i < connectors.size() && i < pinItems.size(); ++i) {
-            if (connectors[i].id == id && pinItems[i] == pin) {
+        bool found = false;
+        for (int i = 0; i < connectors.size(); ++i) {
+            if (connectors[i].id == id) {
                 cellItem->updateConnector(i, newSide, newPercentage, newX, newY);
                 found = true;
                 break;
             }
         }
         if (!found) {
-            qWarning() << "Pin id=" << id << " not found in CellItem connectors or pinItems";
+            qWarning() << "Pin id=" << id << " not found in CellItem connectors";
         }
     }
 
-    qDebug() << "Pin moved: id=" << id << ", side=" << newSide << ", percentage=" << newPercentage << ", x=" << newX << ", y=" << newY;
+    // 更新对话框中的引脚显示
     updatePinScene();
+    
+    qDebug() << "Pin moved: id=" << id << ", side=" << newSide << ", percentage=" << newPercentage << ", x=" << newX << ", y=" << newY;
 }
 
 void Dialogs::updatePins() {
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
-        currentInfo.pins.clear();
-        pinItems.clear();
+        // 从CellItem获取最新的引脚信息
         auto connectors = cellItem->getConnectors();
-        auto pinItemsList = cellItem->getPinItems();
-        if (connectors.size() != pinItemsList.size()) {
-            qWarning() << "connectors and pinItems out of sync in updatePins: connectors=" << connectors.size()
-            << ", pinItems=" << pinItemsList.size();
+        
+        // 更新currentInfo中的引脚信息
+        currentInfo.pins.clear();
+        for (const auto& connector : connectors) {
+            currentInfo.pins.append(CellItemNS::Connector(connector.side, connector.percentage, connector.id, connector.x, connector.y));
         }
-        int count = qMin(connectors.size(), pinItemsList.size());
-        for (int i = 0; i < count; ++i) {
-            if (!pinItemsList[i]) {
-                qWarning() << "Null pinItem at index" << i;
-                continue;
-            }
-            pinItems.append(pinItemsList[i]);
-            currentInfo.pins.append(CellItemNS::Connector(connectors[i].side, connectors[i].percentage, connectors[i].id, connectors[i].x, connectors[i].y));
-        }
+        
+        // 更新对话框中的引脚显示
+        updatePinScene();
+        
         qDebug() << "updatePins completed: pinItems=" << pinItems.size() << ", currentInfo.pins=" << currentInfo.pins.size();
     }
-    updatePinScene();
 }
 
 void Dialogs::on_addPinButton_clicked() {
@@ -684,22 +643,17 @@ void Dialogs::loadFromFile(const QString& defaultName) {
 
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
         // 清除现有引脚
-        auto pinItemsList = cellItem->getPinItems();
-        for (PinItem* pin : pinItemsList) {
-            if (pin && pin->scene()) {
-                pin->scene()->removeItem(pin);
-            }
-            delete pin;
+        auto connectors = cellItem->getConnectors();
+        for (int i = connectors.size() - 1; i >= 0; --i) {
+            cellItem->removeConnector(i);
         }
-        pinItemsList.clear();
-        cellItem->getConnectors().clear();
-        pinItems.clear();
-        currentInfo.pins.clear();
 
         // 添加新引脚
         for (const auto& conn : newPins) {
             addPin(conn.side, conn.percentage, 10, conn.id, conn.x, conn.y);
         }
+        
+        // 更新对话框中的引脚显示
         updatePinScene();
     }
 

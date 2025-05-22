@@ -11,6 +11,7 @@
 #include <QGraphicsView>
 #include <QUndoStack>
 #include "cellitem.h"
+#include "connectionline.h"
 
 struct CellSnapshot {
     QPointF pos;
@@ -35,8 +36,6 @@ public:
     void setRulerVisible(bool visible);  // 设置标尺可见性
     void setRulerColor(const QColor &color);  // 设置标尺颜色
 
-    // void saveSnapshot();
-
     void addCellItem(CellItem *item);
     void setSelectionMode(bool enabled);
     void deleteSelectedItems();
@@ -44,6 +43,15 @@ public:
     void redoAction();
     void zoomInButton();
     void zoomOutButton();
+    
+    // 连线相关方法
+    void startConnection(CellItem* startItem, const QString& startPinId);
+    void finishConnection(CellItem* endItem, const QString& endPinId);
+    void cancelConnection();
+    QList<ConnectionLine*> getConnectionLines() const;
+    
+    // 获取所有芯片项
+    QList<CellItem*> getAllCellItems() const;
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -60,17 +68,26 @@ private:
     bool m_selectionModeEnabled = false;
     QPoint m_lastMousePos;
     QPointF m_dragOffset; // 添加成员变量
-    QGraphicsLineItem* m_tempLine; // 临时连线
+    QGraphicsLineItem* m_tempLine = nullptr; // 临时连线
     QUndoStack *undoStack;
-    QVector<CellItem*> getAllCells() const;
-
+    
+    // 连线相关属性
+    CellItem* m_connectionStartItem = nullptr;
+    QString m_connectionStartPinId;
+    QList<ConnectionLine*> m_connectionLines;
+    
+    // 查找引脚
+    PinItem* findPinItemAt(const QPointF& scenePos, CellItem** outCellItem = nullptr, QString* outPinId = nullptr);
+    
+    // 更新所有连线位置
+    void updateAllConnectionLines();
+    
     // 网格相关属性
     int m_gridSize = 20;  // 默认网格大小
     bool m_gridVisible = true;  // 网格是否可见
     QColor m_gridColor = Qt::lightGray;  // 网格颜色
     bool m_gridSnap = true;  // 是否启用网格对齐
     int m_majorGridSpacing = 5;  // 主网格间距（多少个网格画一条粗线）
-
 
     // 缩放相关属性
     qreal m_zoomFactor = 1.0;  // 当前缩放因子

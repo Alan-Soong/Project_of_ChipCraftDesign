@@ -1,19 +1,34 @@
 #include "cellitem.h"
-// #include "settingdialog.h"
 #include "dialogs.h"
 
 #include <QPainter>
 #include <QCursor>
 #include <QGraphicsSceneMouseEvent>
 #include <QMessageBox>
-#include <QGraphicsView> // 包含此头文件以完成 QGraphicsView 类型的定义
+#include <QGraphicsView>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QDebug>
 
 CellItem::CellItem(QGraphicsItem *parent)
-    : QGraphicsItem(parent), m_size(100, 100), m_resizeEdge(None), m_isDragging(false)  // 默认大小为 100x100
+    : QGraphicsItem(parent), m_size(100, 100), m_resizeEdge(None), m_isDragging(false)
 {
     setFlags(QGraphicsItem::ItemIsSelectable);
     setAcceptHoverEvents(true);
     setCursor(QCursor(Qt::OpenHandCursor));
+}
+
+CellItem::~CellItem()
+{
+    // 清理所有引脚对象，避免内存泄漏
+    for (PinItem* pin : m_pinItems) {
+        if (pin && pin->scene()) {
+            pin->scene()->removeItem(pin);
+        }
+        delete pin;
+    }
+    m_pinItems.clear();
+    m_connectors.clear();
 }
 
 QRectF CellItem::boundingRect() const
@@ -48,6 +63,18 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         painter->drawRect(QRectF(m_size.width() - cornerSize, 0, cornerSize, cornerSize)); // 右上
         painter->drawRect(QRectF(0, m_size.height() - cornerSize, cornerSize, cornerSize)); // 左下
         painter->drawRect(QRectF(m_size.width() - cornerSize, m_size.height() - cornerSize, cornerSize, cornerSize)); // 右下
+    }
+    
+    // 绘制实例名称和宏名称
+    if (!m_instanceName.isEmpty() || !m_macroName.isEmpty()) {
+        painter->setPen(Qt::black);
+        QString text = m_instanceName;
+        if (!m_macroName.isEmpty()) {
+            if (!text.isEmpty()) text += " (";
+            text += m_macroName;
+            if (!m_instanceName.isEmpty()) text += ")";
+        }
+        painter->drawText(boundingRect().adjusted(5, 5, -5, -5), Qt::AlignCenter, text);
     }
 }
 
@@ -86,12 +113,12 @@ QSizeF CellItem::size() const
 
 QPointF CellItem::Connector::calculatePos(const QSizeF& cellSize, qreal pinSize) const {
     qreal posX = x, posY = y;
-
+    
     // 如果是自定义位置，直接使用保存的x,y坐标
     if (side == "custom") {
         return QPointF(posX, posY);
     }
-
+    
     // 否则根据边缘和百分比计算位置
     if (side == "top") {
         posX = cellSize.width() * percentage / 100.0 - pinSize / 2;
@@ -128,6 +155,63 @@ void CellItem::addConnector(const QString& side, qreal percentage, qreal size, c
     qDebug() << "After addConnector: pinItems=" << m_pinItems.size() << ", connectors=" << m_connectors.size();
 }
 
+bool CellItem::removeConnector(const QString& id) {
+    if (id.isEmpty()) {
+        qWarning() << "Cannot remove connector with empty id";
+        return false;
+    }
+    
+    int index = -1;
+    for (int i = 0; i < m_connectors.size(); ++i) {
+        if (m_connectors[i].id == id) {
+            index = i;
+            break;
+        }
+    }
+    
+    if (index >= 0 && index < m_connectors.size() && index < m_pinItems.size()) {
+        return removeConnector(index);
+    }
+    
+    qWarning() << "Connector id=" << id << " not found or index out of range";
+    return false;
+}
+
+bool CellItem::removeConnector(int index) {
+    if (index < 0 || index >= m_connectors.size() || index >= m_pinItems.size()) {
+        qWarning() << "Invalid index for removeConnector: index=" << index
+                   << ", connectors=" << m_connectors.size()
+                   << ", pinItems=" << m_pinItems.size();
+        return false;
+    }
+    QString removedId = m_connectors[index].id;
+    // 从场景中移除引脚
+    PinItem* pinItem = m_pinItems[index];
+    if (pinItem) {
+        if (pinItem->scene()) {
+            pinItem->scene()->removeItem(pinItem);
+        }
+        delete pinItem;
+    }
+    
+    // 从列表中移除引脚和连接器
+    m_pinItems.removeAt(index);
+    m_connectors.removeAt(index);
+    
+    // 移除与此引脚相关的所有连线
+    // QString removedId = m_connectors[index].id;
+    for (int i = m_connections.size() - 1; i >= 0; --i) {
+        if (m_connections[i].second.first == removedId || m_connections[i].second.second == removedId) {
+            m_connections.removeAt(i);
+        }
+    }
+    
+    update();
+    qDebug() << "Removed connector at index=" << index << ", remaining connectors=" << m_connectors.size()
+             << ", remaining pinItems=" << m_pinItems.size();
+    return true;
+}
+
 QList<CellItem::Connector> CellItem::getConnectors() const
 {
     return m_connectors;
@@ -150,6 +234,120 @@ bool CellItem::isOnConnector(const QPointF& pos, Connector& connector) const
     return false;
 }
 
+void CellItem::addConnection(CellItem* targetCell, const QString& sourcePin, const QString& targetPin) {
+    if (!targetCell) {
+        qWarning() << "Cannot add connection to null target cell";
+        return;
+    }
+    
+    // 检查源引脚是否存在
+    bool sourceExists = false;
+    for (const Connector& conn : m_connectors) {
+        if (conn.id == sourcePin) {
+            sourceExists = true;
+            break;
+        }
+    }
+    
+    // 检查目标引脚是否存在
+    bool targetExists = false;
+    for (const Connector& conn : targetCell->getConnectors()) {
+        if (conn.id == targetPin) {
+            targetExists = true;
+            break;
+        }
+    }
+    
+    if (!sourceExists || !targetExists) {
+        qWarning() << "Cannot add connection: source or target pin does not exist";
+        return;
+    }
+    
+    // 添加连接
+    m_connections.append(qMakePair(targetCell, qMakePair(sourcePin, targetPin)));
+    qDebug() << "Added connection from" << sourcePin << "to" << targetPin;
+    update();
+}
+
+QList<QPair<CellItem*, QPair<QString, QString>>> CellItem::getConnections() const {
+    return m_connections;
+}
+
+QJsonObject CellItem::toJson() const {
+    QJsonObject json;
+    
+    // 基本属性
+    json["macroName"] = m_macroName;
+    json["instanceName"] = m_instanceName;
+    json["width"] = m_size.width();
+    json["height"] = m_size.height();
+    json["posX"] = pos().x();
+    json["posY"] = pos().y();
+    
+    // 引脚信息
+    QJsonArray pinsArray;
+    for (const Connector& conn : m_connectors) {
+        QJsonObject pinJson;
+        pinJson["id"] = conn.id;
+        pinJson["side"] = conn.side;
+        pinJson["percentage"] = conn.percentage;
+        pinJson["x"] = conn.x;
+        pinJson["y"] = conn.y;
+        pinsArray.append(pinJson);
+    }
+    json["pins"] = pinsArray;
+    
+    // 连线信息
+    QJsonArray connectionsArray;
+    for (const auto& conn : m_connections) {
+        QJsonObject connJson;
+        connJson["targetCell"] = conn.first ? conn.first->getInstanceName() : "";
+        connJson["sourcePin"] = conn.second.first;
+        connJson["targetPin"] = conn.second.second;
+        connectionsArray.append(connJson);
+    }
+    json["connections"] = connectionsArray;
+    
+    return json;
+}
+
+void CellItem::fromJson(const QJsonObject& json) {
+    // 清理现有数据
+    for (PinItem* pin : m_pinItems) {
+        if (pin && pin->scene()) {
+            pin->scene()->removeItem(pin);
+        }
+        delete pin;
+    }
+    m_pinItems.clear();
+    m_connectors.clear();
+    m_connections.clear();
+    
+    // 加载基本属性
+    m_macroName = json["macroName"].toString();
+    m_instanceName = json["instanceName"].toString();
+    setSize(QSizeF(json["width"].toDouble(), json["height"].toDouble()));
+    setPos(json["posX"].toDouble(), json["posY"].toDouble());
+    
+    // 加载引脚信息
+    QJsonArray pinsArray = json["pins"].toArray();
+    for (const QJsonValue& pinValue : pinsArray) {
+        QJsonObject pinJson = pinValue.toObject();
+        QString id = pinJson["id"].toString();
+        QString side = pinJson["side"].toString();
+        qreal percentage = pinJson["percentage"].toDouble();
+        qreal x = pinJson["x"].toDouble();
+        qreal y = pinJson["y"].toDouble();
+        
+        // 添加引脚
+        addConnector(side, percentage, connectorSize, id, x, y);
+    }
+    
+    // 连线信息需要在所有CellItem都加载完成后处理
+    // 这里只记录连线信息，实际连线在外部完成
+    
+    update();
+}
 
 bool CellItem::isOnEdgeOrCorner(const QPointF &pos, ResizeEdge &edge) const
 {
@@ -233,7 +431,6 @@ void CellItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
     }
     QGraphicsItem::mousePressEvent(event);
 }
-
 
 // 辅助函数：限制尺寸和位置
 void CellItem::restrictSizeAndPosition(QSizeF& size, QPointF& pos)

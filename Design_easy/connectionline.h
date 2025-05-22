@@ -23,6 +23,9 @@ public:
                    QGraphicsItem* parent = nullptr);
 
     void updatePosition(); // 更新连线位置
+    // 添加 getter 方法
+    CellItem* getStartItem() const { return m_startItem; }
+    CellItem* getEndItem() const { return m_endItem; }
 
 private:
     CellItem* m_startItem;
