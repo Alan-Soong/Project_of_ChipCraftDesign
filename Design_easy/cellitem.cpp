@@ -56,6 +56,16 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     painter->setBrush(Qt::lightGray);
     painter->drawRect(boundingRect());
 
+    // 绘制重合区域
+    if (!m_overlapAreas.isEmpty()) {
+        QColor overlapColor = QColor(255, 0, 0, 100);  // 半透明红色
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(overlapColor);
+        for (const QPainterPath& path : m_overlapAreas) {
+            painter->drawPath(path);
+        }
+    }
+
     // 现有绘制代码,加上可以修改大小的点
     if (isSelected()) {
         painter->setBrush(Qt::blue);
@@ -547,12 +557,32 @@ void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 m_resizeEdge == TopRight || m_resizeEdge == BottomLeft) {
                 restrictPosition(newPos);
             }
+            
+            // 更新重合状态
+            updateOverlapState();
+            // 通知其他重合的矩形也更新状态
+            for (CellItem* other : m_overlappingItems) {
+                if (other) {
+                    other->updateOverlapState();
+                }
+            }
+            
             qDebug() << "调整大小，边：" << m_resizeEdge << ", 新大小：" << newSize << ", 新位置：" << pos();
             event->accept();
         } else {
             // 拖动整个矩形
             QPointF newPos = event->scenePos() - m_dragOffset;
             restrictPosition(newPos);
+            
+            // 更新重合状态
+            updateOverlapState();
+            // 通知其他重合的矩形也更新状态
+            for (CellItem* other : m_overlappingItems) {
+                if (other) {
+                    other->updateOverlapState();
+                }
+            }
+            
             qDebug() << "拖动，新位置：" << newPos;
             event->accept();
         }
@@ -623,4 +653,62 @@ void CellItem::updateConnector(int index, const QString& side, qreal percentage,
     } else {
         qWarning() << "Invalid connector index:" << index;
     }
+}
+
+QPainterPath CellItem::getShape() const
+{
+    QPainterPath path;
+    path.addRect(boundingRect());
+    return path;
+}
+
+bool CellItem::isOverlapping(const CellItem* other) const
+{
+    if (!other) return false;
+    
+    // 获取两个矩形的场景坐标
+    QRectF thisRect = mapRectToScene(boundingRect());
+    QRectF otherRect = other->mapRectToScene(other->boundingRect());
+    
+    return thisRect.intersects(otherRect);
+}
+
+QPainterPath CellItem::getOverlapArea(const CellItem* other) const
+{
+    if (!other) return QPainterPath();
+    
+    // 获取两个矩形的场景坐标
+    QRectF thisRect = mapRectToScene(boundingRect());
+    QRectF otherRect = other->mapRectToScene(other->boundingRect());
+    
+    // 计算交集
+    QRectF intersection = thisRect.intersected(otherRect);
+    if (!intersection.isEmpty()) {
+        // 将交集区域转换回本地坐标
+        QRectF localIntersection = mapRectFromScene(intersection);
+        QPainterPath overlap;
+        overlap.addRect(localIntersection);
+        return overlap;
+    }
+    return QPainterPath();
+}
+
+void CellItem::updateOverlapState()
+{
+    m_overlapAreas.clear();
+    m_overlappingItems.clear();
+    
+    if (!scene()) return;
+    
+    // 获取场景中所有的CellItem
+    QList<QGraphicsItem*> items = scene()->items();
+    for (QGraphicsItem* item : items) {
+        CellItem* otherCell = dynamic_cast<CellItem*>(item);
+        if (otherCell && otherCell != this && isOverlapping(otherCell)) {
+            m_overlappingItems.append(otherCell);
+            m_overlapAreas.append(getOverlapArea(otherCell));
+        }
+    }
+    
+    update();  // 触发重绘
 }

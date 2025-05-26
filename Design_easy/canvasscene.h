@@ -53,6 +53,10 @@ public:
     // 获取所有芯片项
     QList<CellItem*> getAllCellItems() const;
 
+    // 添加新方法声明
+    void updateOverlapStates();  // 更新所有矩形的重合状态
+    void addRectangle();  // 添加新矩形
+
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;

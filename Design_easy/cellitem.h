@@ -12,6 +12,7 @@
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QPainterPath>
 
 class Dialogs;
 class PinItem;
@@ -82,6 +83,12 @@ public:
     void setInstanceName(const QString& name) { m_instanceName = name; }
     QString getInstanceName() const { return m_instanceName; }
 
+    // 添加新方法
+    QPainterPath getShape() const;  // 获取矩形的形状路径
+    bool isOverlapping(const CellItem* other) const;  // 检查是否与其他矩形重合
+    QPainterPath getOverlapArea(const CellItem* other) const;  // 获取重合区域
+    void updateOverlapState();  // 更新重合状态
+
 protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 
@@ -106,6 +113,9 @@ private:
     
     // 存储连线信息：目标CellItem，源引脚ID，目标引脚ID
     QList<QPair<CellItem*, QPair<QString, QString>>> m_connections;
+
+    QList<QPainterPath> m_overlapAreas;  // 存储重合区域
+    QList<CellItem*> m_overlappingItems;  // 存储重合的矩形项
 };
 
 // 注册 Connector 到 Qt 元对象系统

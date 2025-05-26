@@ -335,6 +335,29 @@ void CanvasScene::updateAllConnectionLines()
     }
 }
 
+void CanvasScene::updateOverlapStates()
+{
+    // 获取场景中所有的CellItem
+    QList<QGraphicsItem*> items = this->items();
+    for (QGraphicsItem* item : items) {
+        CellItem* cell = dynamic_cast<CellItem*>(item);
+        if (cell) {
+            cell->updateOverlapState();
+        }
+    }
+}
+
+void CanvasScene::addRectangle()
+{
+    // 创建新的CellItem
+    CellItem* newItem = new CellItem();
+    newItem->setPos(0, 0);  // 设置初始位置
+    addCellItem(newItem);
+    
+    // 在添加新矩形后更新所有矩形的重合状态
+    updateOverlapStates();
+}
+
 void CanvasScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     if (!event) return;
@@ -399,6 +422,9 @@ void CanvasScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     
     // 更新所有连线位置
     updateAllConnectionLines();
+    
+    // 更新重合状态
+    updateOverlapStates();
 }
 
 void CanvasScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
