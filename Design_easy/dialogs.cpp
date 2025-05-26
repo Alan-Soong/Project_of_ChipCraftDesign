@@ -123,13 +123,10 @@ Dialogs::Dialogs(QGraphicsItem* item, QWidget *parent)
     ui->addPinButton->setAutoRepeat(false);
     if (!ui->addPinButton) {
         qWarning() << "ui->addPinButton is null! Check dialogs.ui objectName.";
-    } else {
-        connect(ui->addPinButton, &QPushButton::clicked, this, &Dialogs::on_addPinButton_clicked);
     }
+
     if (!ui->removePinButton) {
         qWarning() << "ui->removePinButton is null! Check dialogs.ui objectName.";
-    } else {
-        connect(ui->removePinButton, &QPushButton::clicked, this, &Dialogs::on_removePinButton_clicked);
     }
     connect(ui->nameEdit, &QLineEdit::textChanged, this, &Dialogs::on_nameEdit_textEdited);
     connect(ui->colorCombo, QOverload<int>::of(&QComboBox::activated), this, &Dialogs::on_colorCombo_activated);

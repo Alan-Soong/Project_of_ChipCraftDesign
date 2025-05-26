@@ -14,7 +14,7 @@
 CanvasScene::CanvasScene(QObject *parent)
     : QGraphicsScene(parent), undoStack(new QUndoStack(this))
 {
-    setSceneRect(0, 0, 2000, 2000);
+    setSceneRect(-1000, -1000, 1000, 1000);
     m_tempLine = nullptr;
 }
 
@@ -78,7 +78,17 @@ void CanvasScene::zoomOut()
 void CanvasScene::setZoomFactor(qreal factor)
 {
     m_zoomFactor = qBound(m_minZoom, factor, m_maxZoom);
-    // 这里需要更新所有视图的缩放
+    // 更新所有视图的变换矩阵
+    for (QGraphicsView *view : views()) {
+        view->resetTransform();
+        view->scale(m_zoomFactor, m_zoomFactor);
+
+        // 根据缩放因子调整场景大小
+        qreal newSize = 2000 * (1.0 / factor);
+        setSceneRect(-newSize/2, -newSize/2, newSize, newSize);
+    }
+
+    update();
 }
 
 void CanvasScene::setRulerVisible(bool visible)
