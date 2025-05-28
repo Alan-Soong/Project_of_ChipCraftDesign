@@ -38,6 +38,12 @@ private slots:
 
     void on_deleteButton_clicked();
 
+    void on_actionmm_triggered();
+
+    void on_actioncm_triggered();
+
+    void on_actiondm_triggered();
+
 private:
     Ui::MainWindow *ui;
     CanvasScene *scene;

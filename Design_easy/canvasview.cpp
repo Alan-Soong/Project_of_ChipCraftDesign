@@ -90,12 +90,30 @@ void CanvasView::mouseMoveEvent(QMouseEvent *event)
     QGraphicsView::mouseMoveEvent(event);
 }
 
+void CanvasView::setGridSize(int size)
+{
+    gridSize = size;
+    update();
+}
+
+void CanvasView::setGridVisible(bool visible)
+{
+    gridVisible = visible;
+    update();
+}
+
+void CanvasView::setGridColor(const QColor &color)
+{
+    gridColor = color;
+    update();
+}
+
 void CanvasView::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsView::drawBackground(painter, rect);
-    
+
+    if (!gridVisible) return;
     // 绘制网格
-    const int gridSize = 20;
     const QRectF sceneRect = this->sceneRect();
     
     qreal left = int(rect.left()) - (int(rect.left()) % gridSize);

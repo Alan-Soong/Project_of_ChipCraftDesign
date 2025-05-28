@@ -41,6 +41,9 @@ public:
     QAction *actionaddRect;
     QAction *actionaboutUs;
     QAction *actionhelpDocument;
+    QAction *actionmm;
+    QAction *actioncm;
+    QAction *actiondm;
     QWidget *centralwidget;
     QHBoxLayout *horizontalLayout;
     QGraphicsView *canvasView;
@@ -48,6 +51,7 @@ public:
     QMenu *menudocument;
     QMenu *menuedit;
     QMenu *menuview;
+    QMenu *menuswich_unit;
     QMenu *menusettings;
     QMenu *menufile;
     QMenu *menuhelp;
@@ -99,6 +103,12 @@ public:
         actionaboutUs->setObjectName("actionaboutUs");
         actionhelpDocument = new QAction(MainWindow);
         actionhelpDocument->setObjectName("actionhelpDocument");
+        actionmm = new QAction(MainWindow);
+        actionmm->setObjectName("actionmm");
+        actioncm = new QAction(MainWindow);
+        actioncm->setObjectName("actioncm");
+        actiondm = new QAction(MainWindow);
+        actiondm->setObjectName("actiondm");
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName("centralwidget");
         sizePolicy.setHeightForWidth(centralwidget->sizePolicy().hasHeightForWidth());
@@ -122,6 +132,8 @@ public:
         menuedit->setObjectName("menuedit");
         menuview = new QMenu(menuBar);
         menuview->setObjectName("menuview");
+        menuswich_unit = new QMenu(menuview);
+        menuswich_unit->setObjectName("menuswich_unit");
         menusettings = new QMenu(menuBar);
         menusettings->setObjectName("menusettings");
         menufile = new QMenu(menuBar);
@@ -210,6 +222,10 @@ public:
         menuBar->addAction(menuhelp->menuAction());
         menuedit->addAction(actionaddRect);
         menuview->addAction(actionsetting_original);
+        menuview->addAction(menuswich_unit->menuAction());
+        menuswich_unit->addAction(actionmm);
+        menuswich_unit->addAction(actioncm);
+        menuswich_unit->addAction(actiondm);
         menusettings->addAction(actionsetLeftDock);
         menusettings->addAction(actionhideLeftDock);
         menufile->addAction(actionnew);
@@ -241,9 +257,13 @@ public:
         actionaddRect->setText(QCoreApplication::translate("MainWindow", "addRect", nullptr));
         actionaboutUs->setText(QCoreApplication::translate("MainWindow", "aboutUs", nullptr));
         actionhelpDocument->setText(QCoreApplication::translate("MainWindow", "helpDocument", nullptr));
+        actionmm->setText(QCoreApplication::translate("MainWindow", "mm", nullptr));
+        actioncm->setText(QCoreApplication::translate("MainWindow", "cm", nullptr));
+        actiondm->setText(QCoreApplication::translate("MainWindow", "dm", nullptr));
         menudocument->setTitle(QCoreApplication::translate("MainWindow", "document", nullptr));
         menuedit->setTitle(QCoreApplication::translate("MainWindow", "edit", nullptr));
         menuview->setTitle(QCoreApplication::translate("MainWindow", "setting", nullptr));
+        menuswich_unit->setTitle(QCoreApplication::translate("MainWindow", "swich unit", nullptr));
         menusettings->setTitle(QCoreApplication::translate("MainWindow", "view", nullptr));
         menufile->setTitle(QCoreApplication::translate("MainWindow", "file", nullptr));
         menuhelp->setTitle(QCoreApplication::translate("MainWindow", "help", nullptr));

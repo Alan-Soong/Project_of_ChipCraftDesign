@@ -63,7 +63,16 @@
     <property name="title">
      <string>setting</string>
     </property>
+    <widget class="QMenu" name="menuswich_unit">
+     <property name="title">
+      <string>swich unit</string>
+     </property>
+     <addaction name="actionmm"/>
+     <addaction name="actioncm"/>
+     <addaction name="actiondm"/>
+    </widget>
     <addaction name="actionsetting_original"/>
+    <addaction name="menuswich_unit"/>
    </widget>
    <widget class="QMenu" name="menusettings">
     <property name="title">
@@ -297,6 +306,21 @@
   <action name="actionhelpDocument">
    <property name="text">
     <string>helpDocument</string>
+   </property>
+  </action>
+  <action name="actionmm">
+   <property name="text">
+    <string>mm</string>
+   </property>
+  </action>
+  <action name="actioncm">
+   <property name="text">
+    <string>cm</string>
+   </property>
+  </action>
+  <action name="actiondm">
+   <property name="text">
+    <string>dm</string>
    </property>
   </action>
   <zorder>dockWidget</zorder>

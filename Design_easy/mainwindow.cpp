@@ -483,3 +483,21 @@ void MainWindow::on_deleteButton_clicked()
         }
     }
 }
+
+void MainWindow::on_actionmm_triggered()
+{
+    view->setGridSize(10);
+}
+
+
+void MainWindow::on_actioncm_triggered()
+{
+    view->setGridSize(100);
+}
+
+
+void MainWindow::on_actiondm_triggered()
+{
+     view->setGridSize(1000);
+}
+

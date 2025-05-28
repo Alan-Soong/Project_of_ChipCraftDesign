@@ -475,18 +475,18 @@ void CanvasScene::wheelEvent(QGraphicsSceneWheelEvent *event)
 void CanvasScene::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsScene::drawBackground(painter, rect);
-    
+
     if (!m_gridVisible) return;
-    
+
     // 绘制网格
     QPen pen(m_gridColor, 0);
     painter->setPen(pen);
-    
+
     qreal left = int(rect.left()) - (int(rect.left()) % m_gridSize);
     qreal top = int(rect.top()) - (int(rect.top()) % m_gridSize);
-    
+
     QVector<QLineF> lines;
-    
+
     // 绘制垂直线
     for (qreal x = left; x < rect.right(); x += m_gridSize) {
         // 每隔m_majorGridSpacing个网格绘制一条粗线
@@ -500,7 +500,7 @@ void CanvasScene::drawBackground(QPainter *painter, const QRectF &rect)
         painter->setPen(pen);
         painter->drawLine(QLineF(x, rect.top(), x, rect.bottom()));
     }
-    
+
     // 绘制水平线
     for (qreal y = top; y < rect.bottom(); y += m_gridSize) {
         // 每隔m_majorGridSpacing个网格绘制一条粗线

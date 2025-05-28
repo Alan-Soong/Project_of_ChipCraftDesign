@@ -15,7 +15,9 @@ class CanvasView : public QGraphicsView {
 public:
     explicit CanvasView(QGraphicsScene *scene, QWidget *parent = nullptr);
     ~CanvasView();
-
+    void setGridSize(int size);  // 设置网格大小
+    void setGridVisible(bool visible);  // 设置网格可见性
+    void setGridColor(const QColor &color);  // 设置网格颜色
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
@@ -28,6 +30,9 @@ protected:
 private:
     bool m_shiftHeld = false;
     bool m_leftMouseButtonPressed = false;
+    int gridSize = 50;  // 默认网格大小
+    bool gridVisible = true;  // 网格是否可见
+    QColor gridColor = Qt::lightGray;  // 网格颜色
     QPoint m_lastMousePos;
     QGraphicsScene *m_scene;
 };

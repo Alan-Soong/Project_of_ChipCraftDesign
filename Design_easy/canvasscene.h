@@ -43,13 +43,13 @@ public:
     void redoAction();
     void zoomInButton();
     void zoomOutButton();
-    
+
     // 连线相关方法
     void startConnection(CellItem* startItem, const QString& startPinId);
     void finishConnection(CellItem* endItem, const QString& endPinId);
     void cancelConnection();
     QList<ConnectionLine*> getConnectionLines() const;
-    
+
     // 获取所有芯片项
     QList<CellItem*> getAllCellItems() const;
 
@@ -74,18 +74,18 @@ private:
     QPointF m_dragOffset; // 添加成员变量
     QGraphicsLineItem* m_tempLine = nullptr; // 临时连线
     QUndoStack *undoStack;
-    
+
     // 连线相关属性
     CellItem* m_connectionStartItem = nullptr;
     QString m_connectionStartPinId;
     QList<ConnectionLine*> m_connectionLines;
-    
+
     // 查找引脚
     PinItem* findPinItemAt(const QPointF& scenePos, CellItem** outCellItem = nullptr, QString* outPinId = nullptr);
-    
+
     // 更新所有连线位置
     void updateAllConnectionLines();
-    
+
     // 网格相关属性
     int m_gridSize = 20;  // 默认网格大小
     bool m_gridVisible = true;  // 网格是否可见
