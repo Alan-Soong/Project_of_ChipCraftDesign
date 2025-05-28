@@ -529,53 +529,79 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
     
-    QFont font = painter->font();
-    font.setPointSize(8);
-    painter->setFont(font);
-    
-    QFontMetrics fm(font);
-    
     // 获取视图的可见区域
     QRectF visibleRect;
     QList<QGraphicsView*> views = this->views();
     if (!views.isEmpty()) {
         QGraphicsView* view = views.first();
         visibleRect = view->mapToScene(view->viewport()->rect()).boundingRect();
-    } else {
-        visibleRect = rect;
-    }
-    
-    // 绘制水平标尺
-    QRectF horizontalRuler(visibleRect.left(), visibleRect.top(), visibleRect.width(), m_rulerSize);
-    painter->fillRect(horizontalRuler, QColor(240, 240, 240));
-    painter->drawRect(horizontalRuler);
-    
-    // 绘制垂直标尺
-    QRectF verticalRuler(visibleRect.left(), visibleRect.top(), m_rulerSize, visibleRect.height());
-    painter->fillRect(verticalRuler, QColor(240, 240, 240));
-    painter->drawRect(verticalRuler);
-    
-    // 绘制水平标尺刻度
-    for (int x = int(visibleRect.left()) - (int(visibleRect.left()) % m_gridSize); x < visibleRect.right(); x += m_gridSize) {
-        // 每隔m_majorGridSpacing个网格绘制一个带数字的刻度
-        if (int(x / m_gridSize) % m_majorGridSpacing == 0) {
-            painter->drawLine(x, visibleRect.top(), x, visibleRect.top() + m_rulerTickSize * 2);
-            QString text = QString::number(x);
-            painter->drawText(x - fm.horizontalAdvance(text) / 2, visibleRect.top() + m_rulerSize - m_rulerTextOffset, text);
-        } else {
-            painter->drawLine(x, visibleRect.top(), x, visibleRect.top() + m_rulerTickSize);
+        
+        // 计算标尺宽度为视口宽度的相对比例，并考虑缩放因子
+        qreal viewportWidth = view->viewport()->width();
+        qreal scale = view->transform().m11(); // 获取水平缩放比例
+        
+        // 基础标尺宽度为视口宽度的3%，但会根据缩放比例调整
+        qreal baseRulerWidth = viewportWidth * 0.03;
+        // 缩放时标尺宽度会相应调整
+        qreal rulerWidth = baseRulerWidth / scale;
+        
+        // 设置字体大小，根据缩放比例动态调整
+        QFont font = painter->font();
+        // 基础字体大小为12，根据缩放比例调整
+        qreal baseFontSize = 12.0;
+        qreal fontSize = baseFontSize / scale;
+        font.setPointSizeF(fontSize);
+        painter->setFont(font);
+        
+        QFontMetrics fm(font);
+        
+        // 绘制水平标尺
+        QRectF horizontalRuler(visibleRect.left(), visibleRect.top(), visibleRect.width(), rulerWidth);
+        painter->fillRect(horizontalRuler, QColor(240, 240, 240));
+        painter->drawRect(horizontalRuler);
+        
+        // 绘制垂直标尺
+        QRectF verticalRuler(visibleRect.left(), visibleRect.top(), rulerWidth, visibleRect.height());
+        painter->fillRect(verticalRuler, QColor(240, 240, 240));
+        painter->drawRect(verticalRuler);
+        
+        // 计算合适的刻度间隔，使屏幕内显示固定数量的刻度
+        const int targetTickCount = 80; // 目标刻度数量
+        qreal visibleWidth = visibleRect.width();
+        qreal visibleHeight = visibleRect.height();
+        
+        // 计算基础间隔
+        qreal baseInterval = qMax(visibleWidth, visibleHeight) / targetTickCount;
+        
+        // 将间隔调整为网格大小的整数倍
+        qreal gridMultiplier = qCeil(baseInterval / m_gridSize);
+        qreal interval = m_gridSize * gridMultiplier;
+        
+        // 主刻度间隔为普通间隔的5倍
+        qreal majorInterval = interval * 5;
+        
+        // 绘制水平标尺刻度
+        for (qreal x = qFloor(visibleRect.left() / interval) * interval; x < visibleRect.right(); x += interval) {
+            // 每隔majorInterval绘制一个带数字的刻度
+            if (qAbs(fmod(x, majorInterval)) < 0.1) {
+                painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.3));
+                QString text = QString::number(qRound(x));
+                painter->drawText(x - fm.horizontalAdvance(text) / 2, visibleRect.top() + rulerWidth * 0.8, text);
+            } else {
+                painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.2));
+            }
         }
-    }
-    
-    // 绘制垂直标尺刻度
-    for (int y = int(visibleRect.top()) - (int(visibleRect.top()) % m_gridSize); y < visibleRect.bottom(); y += m_gridSize) {
-        // 每隔m_majorGridSpacing个网格绘制一个带数字的刻度
-        if (int(y / m_gridSize) % m_majorGridSpacing == 0) {
-            painter->drawLine(visibleRect.left(), y, visibleRect.left() + m_rulerTickSize * 2, y);
-            QString text = QString::number(y);
-            painter->drawText(visibleRect.left() + m_rulerTextOffset, y + fm.height() / 2, text);
-        } else {
-            painter->drawLine(visibleRect.left(), y, visibleRect.left() + m_rulerTickSize, y);
+        
+        // 绘制垂直标尺刻度
+        for (qreal y = qFloor(visibleRect.top() / interval) * interval; y < visibleRect.bottom(); y += interval) {
+            // 每隔majorInterval绘制一个带数字的刻度
+            if (qAbs(fmod(y, majorInterval)) < 0.1) {
+                painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.3, y));
+                QString text = QString::number(qRound(y));
+                painter->drawText(visibleRect.left() + rulerWidth * 0.2, y + fm.height() / 2, text);
+            } else {
+                painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.2, y));
+            }
         }
     }
     
