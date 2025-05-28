@@ -122,14 +122,15 @@ QSizeF CellItem::size() const
 }
 
 QPointF CellItem::Connector::calculatePos(const QSizeF& cellSize, qreal pinSize) const {
-    qreal posX = x, posY = y;
-    
-    // 如果是自定义位置，直接使用保存的x,y坐标
+    // 如果是自定义位置，使用相对位置比例计算
     if (side == "custom") {
+        qreal posX = relativeX * cellSize.width();
+        qreal posY = relativeY * cellSize.height();
         return QPointF(posX, posY);
     }
     
-    // 否则根据边缘和百分比计算位置
+    // 对于边缘引脚，使用百分比计算
+    qreal posX, posY;
     if (side == "top") {
         posX = cellSize.width() * percentage / 100.0 - pinSize / 2;
         posY = 0;
@@ -152,7 +153,15 @@ void CellItem::addConnector(const QString& side, qreal percentage, qreal size, c
         return;
     }
     percentage = qBound(0.0, percentage, 100.0);
+    
+    // 计算相对位置比例
+    qreal relativeX = x / m_size.width();
+    qreal relativeY = y / m_size.height();
+    
     Connector connector(side, percentage, id, x, y);
+    connector.relativeX = relativeX;
+    connector.relativeY = relativeY;
+    
     m_connectors.append(connector);
     PinItem* pinItem = new PinItem(this, size, this);
     pinItem->setBrush(Qt::darkBlue);
@@ -303,6 +312,8 @@ QJsonObject CellItem::toJson() const {
         pinJson["percentage"] = conn.percentage;
         pinJson["x"] = conn.x;
         pinJson["y"] = conn.y;
+        pinJson["relativeX"] = conn.relativeX;
+        pinJson["relativeY"] = conn.relativeY;
         pinsArray.append(pinJson);
     }
     json["pins"] = pinsArray;
@@ -348,13 +359,22 @@ void CellItem::fromJson(const QJsonObject& json) {
         qreal percentage = pinJson["percentage"].toDouble();
         qreal x = pinJson["x"].toDouble();
         qreal y = pinJson["y"].toDouble();
+        qreal relativeX = pinJson["relativeX"].toDouble();
+        qreal relativeY = pinJson["relativeY"].toDouble();
         
         // 添加引脚
-        addConnector(side, percentage, connectorSize, id, x, y);
+        Connector connector(side, percentage, id, x, y);
+        connector.relativeX = relativeX;
+        connector.relativeY = relativeY;
+        m_connectors.append(connector);
+        
+        PinItem* pinItem = new PinItem(this, connectorSize, this);
+        pinItem->setBrush(Qt::darkBlue);
+        pinItem->setPen(Qt::NoPen);
+        pinItem->setPos(x, y);
+        pinItem->updateConnector(id, x, y);
+        m_pinItems.append(pinItem);
     }
-    
-    // 连线信息需要在所有CellItem都加载完成后处理
-    // 这里只记录连线信息，实际连线在外部完成
     
     update();
 }
@@ -644,12 +664,20 @@ void CellItem::updateConnector(int index, const QString& side, qreal percentage,
         m_connectors[index].percentage = percentage;
         m_connectors[index].x = x;
         m_connectors[index].y = y;
+        
+        // 更新相对位置比例
+        m_connectors[index].relativeX = x / m_size.width();
+        m_connectors[index].relativeY = y / m_size.height();
+        
         if (index < m_pinItems.size() && m_pinItems[index]) {
             m_pinItems[index]->updateConnector(m_connectors[index].id, x, y);
             m_pinItems[index]->setPos(x, y);
         }
         update();
-        qDebug() << "Updated connector: index=" << index << ", id=" << m_connectors[index].id << ", x=" << x << ", y=" << y;
+        qDebug() << "Updated connector: index=" << index << ", id=" << m_connectors[index].id 
+                 << ", x=" << x << ", y=" << y 
+                 << ", relativeX=" << m_connectors[index].relativeX 
+                 << ", relativeY=" << m_connectors[index].relativeY;
     } else {
         qWarning() << "Invalid connector index:" << index;
     }

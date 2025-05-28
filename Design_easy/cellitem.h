@@ -51,10 +51,13 @@ public:
         QString side; // "top", "bottom", "left", "right", "custom"
         qreal percentage; // 0.0 to 100.0
         QString id;
-        qreal x;
-        qreal y;
+        qreal x;  // 绝对坐标
+        qreal y;  // 绝对坐标
+        qreal relativeX;  // 相对位置比例 (0.0 to 1.0)
+        qreal relativeY;  // 相对位置比例 (0.0 to 1.0)
         Connector() = default;
-        Connector(const QString& s, qreal p, const QString& i, qreal xPos = 0, qreal yPos = 0) : side(s), percentage(p), id(i), x(xPos), y(yPos) {}
+        Connector(const QString& s, qreal p, const QString& i, qreal xPos = 0, qreal yPos = 0) 
+            : side(s), percentage(p), id(i), x(xPos), y(yPos), relativeX(0), relativeY(0) {}
         QPointF calculatePos(const QSizeF& cellSize, qreal pinSize) const;
     };
     
