@@ -35,6 +35,7 @@ public:
     void setZoomFactor(qreal factor);  // 设置缩放因子
     void setRulerVisible(bool visible);  // 设置标尺可见性
     void setRulerColor(const QColor &color);  // 设置标尺颜色
+    void set_unit(QString to_unit);//设置单位
 
     void addCellItem(CellItem *item);
     void setSelectionMode(bool enabled);
@@ -92,6 +93,7 @@ private:
     QColor m_gridColor = Qt::lightGray;  // 网格颜色
     bool m_gridSnap = true;  // 是否启用网格对齐
     int m_majorGridSpacing = 5;  // 主网格间距（多少个网格画一条粗线）
+    QString to_unit="cm";
 
     // 缩放相关属性
     qreal m_zoomFactor = 1.0;  // 当前缩放因子

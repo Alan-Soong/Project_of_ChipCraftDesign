@@ -102,7 +102,11 @@ void CanvasScene::setRulerColor(const QColor &color)
     m_rulerColor = color;
     update();
 }
-
+void CanvasScene::set_unit(const QString unit)
+{
+    to_unit = unit;
+    update();
+}
 void CanvasScene::addCellItem(CellItem *item)
 {
     if (!item) return;
@@ -580,12 +584,29 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
         // 主刻度间隔为普通间隔的5倍
         qreal majorInterval = interval * 5;
         
+        // 获取网格单位（假设m_gridSize为10表示1mm）
+        qreal gridUnit = m_gridSize / 10.0; // 1个网格单位对应的实际距离（mm）
+        
+        // 单位转换函数
+        auto convertUnit = [](qreal value, const QString& fromUnit, const QString& toUnit) -> qreal {
+            if (fromUnit == "mm" && toUnit == "cm") {
+                return value / 10.0;
+            } else if (fromUnit == "mm" && toUnit == "dm") {
+                return value / 100.0;
+            }
+            return value;
+        };
+        
         // 绘制水平标尺刻度
         for (qreal x = qFloor(visibleRect.left() / interval) * interval; x < visibleRect.right(); x += interval) {
             // 每隔majorInterval绘制一个带数字的刻度
             if (qAbs(fmod(x, majorInterval)) < 0.1) {
                 painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.3));
-                QString text = QString::number(qRound(x));
+                // 将坐标转换为实际距离（以毫米为基准）
+                qreal distance = x * gridUnit; // 距离（mm）
+                // 根据当前单位转换距离
+                qreal convertedDistance = convertUnit(distance, "mm", to_unit);
+                QString text = QString::number(convertedDistance, 'f', 1) + to_unit;
                 painter->drawText(x - fm.horizontalAdvance(text) / 2, visibleRect.top() + rulerWidth * 0.8, text);
             } else {
                 painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.2));
@@ -597,7 +618,11 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
             // 每隔majorInterval绘制一个带数字的刻度
             if (qAbs(fmod(y, majorInterval)) < 0.1) {
                 painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.3, y));
-                QString text = QString::number(qRound(y));
+                // 将坐标转换为实际距离（以毫米为基准）
+                qreal distance = y * gridUnit; // 距离（mm）
+                // 根据当前单位转换距离
+                qreal convertedDistance = convertUnit(distance, "mm", to_unit);
+                QString text = QString::number(convertedDistance, 'f', 1) + to_unit;
                 painter->drawText(visibleRect.left() + rulerWidth * 0.2, y + fm.height() / 2, text);
             } else {
                 painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.2, y));

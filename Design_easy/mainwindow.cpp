@@ -487,17 +487,20 @@ void MainWindow::on_deleteButton_clicked()
 void MainWindow::on_actionmm_triggered()
 {
     view->setGridSize(10);
+    scene->set_unit("mm");
 }
 
 
 void MainWindow::on_actioncm_triggered()
 {
     view->setGridSize(100);
+    scene->set_unit("cm");
 }
 
 
 void MainWindow::on_actiondm_triggered()
 {
-     view->setGridSize(1000);
+    view->setGridSize(1000);
+    scene->set_unit("dm");
 }
 

@@ -30,7 +30,7 @@ protected:
 private:
     bool m_shiftHeld = false;
     bool m_leftMouseButtonPressed = false;
-    int gridSize = 50;  // 默认网格大小
+    int gridSize = 100;  // 默认网格大小
     bool gridVisible = true;  // 网格是否可见
     QColor gridColor = Qt::lightGray;  // 网格颜色
     QPoint m_lastMousePos;
