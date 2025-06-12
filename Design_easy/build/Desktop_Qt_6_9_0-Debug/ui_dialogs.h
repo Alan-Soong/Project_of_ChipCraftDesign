@@ -47,6 +47,12 @@ public:
     QGraphicsView *pinGraphicsView;
     QComboBox *sideCombo;
     QDoubleSpinBox *percentageSpin;
+    QHBoxLayout *horizontalLayout_2;
+    QLabel *label_2;
+    QDoubleSpinBox *xSpinBox;
+    QHBoxLayout *horizontalLayout_3;
+    QLabel *label_3;
+    QDoubleSpinBox *ySpinBox;
     QPushButton *addPinButton;
     QPushButton *removePinButton;
 
@@ -166,6 +172,40 @@ public:
 
         verticalLayout->addWidget(percentageSpin);
 
+        horizontalLayout_2 = new QHBoxLayout();
+        horizontalLayout_2->setObjectName("horizontalLayout_2");
+        label_2 = new QLabel(Dialogs);
+        label_2->setObjectName("label_2");
+
+        horizontalLayout_2->addWidget(label_2);
+
+        xSpinBox = new QDoubleSpinBox(Dialogs);
+        xSpinBox->setObjectName("xSpinBox");
+        sizePolicy.setHeightForWidth(xSpinBox->sizePolicy().hasHeightForWidth());
+        xSpinBox->setSizePolicy(sizePolicy);
+
+        horizontalLayout_2->addWidget(xSpinBox);
+
+
+        verticalLayout->addLayout(horizontalLayout_2);
+
+        horizontalLayout_3 = new QHBoxLayout();
+        horizontalLayout_3->setObjectName("horizontalLayout_3");
+        label_3 = new QLabel(Dialogs);
+        label_3->setObjectName("label_3");
+
+        horizontalLayout_3->addWidget(label_3);
+
+        ySpinBox = new QDoubleSpinBox(Dialogs);
+        ySpinBox->setObjectName("ySpinBox");
+        sizePolicy.setHeightForWidth(ySpinBox->sizePolicy().hasHeightForWidth());
+        ySpinBox->setSizePolicy(sizePolicy);
+
+        horizontalLayout_3->addWidget(ySpinBox);
+
+
+        verticalLayout->addLayout(horizontalLayout_3);
+
         addPinButton = new QPushButton(Dialogs);
         addPinButton->setObjectName("addPinButton");
 
@@ -200,6 +240,8 @@ public:
         checkBox->setText(QCoreApplication::translate("Dialogs", "\345\220\257\347\224\250\350\260\203\346\225\264\345\244\247\345\260\217", nullptr));
         saveButton->setText(QCoreApplication::translate("Dialogs", "\344\277\235\345\255\230", nullptr));
         cancelButton->setText(QCoreApplication::translate("Dialogs", "\345\217\226\346\266\210", nullptr));
+        label_2->setText(QCoreApplication::translate("Dialogs", "X\345\235\220\346\240\207:", nullptr));
+        label_3->setText(QCoreApplication::translate("Dialogs", "Y\345\235\220\346\240\207:", nullptr));
         addPinButton->setText(QCoreApplication::translate("Dialogs", "\346\267\273\345\212\240\347\253\257\345\217\243", nullptr));
         removePinButton->setText(QCoreApplication::translate("Dialogs", "\347\247\273\351\231\244\345\274\225\350\204\232", nullptr));
     } // retranslateUi

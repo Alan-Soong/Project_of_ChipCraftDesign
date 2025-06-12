@@ -130,6 +130,9 @@ Dialogs::Dialogs(QGraphicsItem* item, QWidget *parent)
     }
     connect(ui->nameEdit, &QLineEdit::textChanged, this, &Dialogs::on_nameEdit_textEdited);
     connect(ui->colorCombo, QOverload<int>::of(&QComboBox::activated), this, &Dialogs::on_colorCombo_activated);
+    connect(ui->sideCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &Dialogs::on_sideCombo_currentIndexChanged);
+    connect(ui->xSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &Dialogs::on_xSpinBox_valueChanged);
+    connect(ui->ySpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &Dialogs::on_ySpinBox_valueChanged);
     ui->pinGraphicsView->installEventFilter(this);
     
     // 初始化边缘选择下拉框
@@ -143,6 +146,15 @@ Dialogs::Dialogs(QGraphicsItem* item, QWidget *parent)
     // 设置百分比范围
     ui->percentageSpin->setRange(0, 100);
     ui->percentageSpin->setValue(50);
+    
+    // 设置坐标输入范围
+    ui->xSpinBox->setRange(0, 1000);
+    ui->ySpinBox->setRange(0, 1000);
+    ui->xSpinBox->setDecimals(2);
+    ui->ySpinBox->setDecimals(2);
+    
+    // 初始时禁用坐标输入
+    updateCoordinateInputs(false);
     
     currentInfo.width = 100;
     currentInfo.height = 100;
@@ -411,6 +423,62 @@ void Dialogs::on_colorCombo_activated(int index)
     }
 }
 
+void Dialogs::on_sideCombo_currentIndexChanged(int index)
+{
+    QString side = ui->sideCombo->currentText();
+    bool isCustom = (side == "custom");
+    updateCoordinateInputs(isCustom);
+    
+    if (isCustom && selectedPin) {
+        // 更新坐标输入框的值
+        ui->xSpinBox->setValue(selectedPin->pos().x());
+        ui->ySpinBox->setValue(selectedPin->pos().y());
+    }
+}
+
+void Dialogs::on_xSpinBox_valueChanged(double value)
+{
+    if (selectedPin && ui->sideCombo->currentText() == "custom") {
+        QPointF newPos = selectedPin->pos();
+        newPos.setX(value);
+        selectedPin->setPos(newPos);
+        selectedPin->updateConnector(selectedPin->getId(), newPos.x(), newPos.y());
+        updatePinScene();
+    }
+}
+
+void Dialogs::on_ySpinBox_valueChanged(double value)
+{
+    if (selectedPin && ui->sideCombo->currentText() == "custom") {
+        QPointF newPos = selectedPin->pos();
+        newPos.setY(value);
+        selectedPin->setPos(newPos);
+        selectedPin->updateConnector(selectedPin->getId(), newPos.x(), newPos.y());
+        updatePinScene();
+    }
+}
+
+void Dialogs::updateCoordinateInputs(bool enabled)
+{
+    if (ui->xSpinBox && ui->ySpinBox) {
+        ui->xSpinBox->setEnabled(enabled);
+        ui->ySpinBox->setEnabled(enabled);
+        ui->percentageSpin->setEnabled(!enabled);
+        
+        // 如果启用坐标输入，设置初始值
+        if (enabled) {
+            if (selectedPin) {
+                ui->xSpinBox->setValue(selectedPin->pos().x());
+                ui->ySpinBox->setValue(selectedPin->pos().y());
+            } else {
+                // 如果没有选中的引脚，设置为芯片中心
+                ui->xSpinBox->setValue(currentInfo.width / 2);
+                ui->ySpinBox->setValue(currentInfo.height / 2);
+            }
+        }
+    }
+}
+
 void Dialogs::addPin(const QString& side, qreal percentage, qreal size, const QString& id, qreal x, qreal y) {
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
         int prevPinCount = cellItem->getPinItems().size();
@@ -557,11 +625,27 @@ void Dialogs::updatePins() {
 }
 
 void Dialogs::on_addPinButton_clicked() {
-    // 切换到添加引脚模式
-    m_addingPin = true;
-    ui->pinGraphicsView->setCursor(Qt::CrossCursor);
-    chipRect->setPen(QPen(Qt::red, 2));
-    QMessageBox::information(this, "添加引脚", "请在芯片区域内点击以添加引脚。\n靠近边缘会自动吸附到边缘，内部区域则创建自由位置引脚。");
+    QString side = ui->sideCombo->currentText();
+    if (side == "custom") {
+        // 从输入框获取坐标
+        qreal x = ui->xSpinBox->value();
+        qreal y = ui->ySpinBox->value();
+        
+        // 检查坐标是否在有效范围内
+        if (x >= 0 && x <= currentInfo.width && y >= 0 && y <= currentInfo.height) {
+            QString id = QString("pin_%1").arg(currentInfo.pins.size() + 1);
+            addPin(side, 0.0, 10, id, x, y);
+            qDebug() << "Added pin via coordinates: id=" << id << ", x=" << x << ", y=" << y;
+        } else {
+            QMessageBox::warning(this, "错误", "坐标超出芯片范围！");
+        }
+    } else {
+        // 使用原有的点击添加方式
+        m_addingPin = true;
+        ui->pinGraphicsView->setCursor(Qt::CrossCursor);
+        chipRect->setPen(QPen(Qt::red, 2));
+        QMessageBox::information(this, "添加引脚", "请在芯片区域内点击以添加引脚。\n靠近边缘会自动吸附到边缘，内部区域则创建自由位置引脚。");
+    }
 }
 
 void Dialogs::saveToFile(const QString& defaultName) {
