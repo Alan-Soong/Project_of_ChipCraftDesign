@@ -156,13 +156,37 @@ Dialogs::Dialogs(QGraphicsItem* item, QWidget *parent)
     // 初始时禁用坐标输入
     updateCoordinateInputs(false);
     
-    currentInfo.width = 100;
-    currentInfo.height = 100;
+    // 从targetItem获取实际的芯片尺寸
+    if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
+        QRectF rect = cellItem->boundingRect();
+        currentInfo.width = static_cast<int>(rect.width());
+        currentInfo.height = static_cast<int>(rect.height());
+        qDebug() << "Chip size from targetItem: width=" << currentInfo.width << ", height=" << currentInfo.height;
+    } else {
+        currentInfo.width = 100;
+        currentInfo.height = 100;
+    }
+    
     setupPinScene();
     
     // 加载现有引脚信息
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
         updatePins();
+        
+        // 使用定时器等待窗口完全显示后再设置预览图
+        QTimer::singleShot(0, this, [this]() {
+            // 设置预览图的初始显示
+            QRect viewport = ui->pinGraphicsView->viewport()->rect();
+            qDebug() << "Initial viewport size: width=" << viewport.width() << ", height=" << viewport.height();
+            
+            qreal scaleX = viewport.width() / (qreal)currentInfo.width;
+            qreal scaleY = viewport.height() / (qreal)currentInfo.height;
+            qreal scale = qMin(scaleX, scaleY) * 0.85; // 留出一些边距
+            
+            ui->pinGraphicsView->resetTransform();
+            ui->pinGraphicsView->scale(scale, scale);
+            ui->pinGraphicsView->centerOn(chipRect->boundingRect().center());
+        });
     }
 }
 
@@ -283,6 +307,23 @@ void Dialogs::updatePinScene() {
         chipRect->setRect(0, 0, currentInfo.width, currentInfo.height);
     }
 
+    // 设置场景大小为芯片实际大小
+    pinScene->setSceneRect(0, 0, currentInfo.width, currentInfo.height);
+    
+    // 计算缩放比例以保持长宽比
+    QRect viewport = ui->pinGraphicsView->viewport()->rect();
+    qreal scaleX = viewport.width() / (qreal)currentInfo.width;
+    qreal scaleY = viewport.height() / (qreal)currentInfo.height;
+    qDebug() << "viewport.width()" << viewport.width()<<"current width"<<currentInfo.width;
+    qreal scale = qMin(scaleX, scaleY) * 0.85; // 减小缩放比例，留出更多边距
+    
+    // 应用缩放
+    ui->pinGraphicsView->resetTransform();
+    ui->pinGraphicsView->scale(scale, scale);
+    
+    // 居中显示
+    ui->pinGraphicsView->centerOn(chipRect->boundingRect().center());
+
     // 从CellItem获取最新的引脚信息
     if (auto* cellItem = dynamic_cast<CellItem*>(targetItem)) {
         auto cellPinItems = cellItem->getPinItems();
@@ -301,6 +342,8 @@ void Dialogs::updatePinScene() {
             
             // 创建新的PinItem用于对话框显示
             PinItem* pin = new PinItem(chipRect, 10);
+            
+            // 使用绝对位置
             pin->updateConnector(connectors[i].id, connectors[i].x, connectors[i].y);
             pin->setPos(connectors[i].x, connectors[i].y);
             pinScene->addItem(pin);
@@ -314,7 +357,8 @@ void Dialogs::updatePinScene() {
                 pin->setBrush(QColor("darkblue"));
             }
             
-            qDebug() << "Added PinItem to scene: id=" << connectors[i].id << ", x=" << connectors[i].x << ", y=" << connectors[i].y;
+            qDebug() << "Added PinItem to scene: id=" << connectors[i].id 
+                     << ", x=" << connectors[i].x << ", y=" << connectors[i].y;
         }
         
         // 更新currentInfo中的引脚信息
@@ -636,6 +680,9 @@ void Dialogs::on_addPinButton_clicked() {
             QString id = QString("pin_%1").arg(currentInfo.pins.size() + 1);
             addPin(side, 0.0, 10, id, x, y);
             qDebug() << "Added pin via coordinates: id=" << id << ", x=" << x << ", y=" << y;
+            
+            // 立即更新预览图显示
+            updatePinScene();
         } else {
             QMessageBox::warning(this, "错误", "坐标超出芯片范围！");
         }
@@ -644,6 +691,10 @@ void Dialogs::on_addPinButton_clicked() {
         m_addingPin = true;
         ui->pinGraphicsView->setCursor(Qt::CrossCursor);
         chipRect->setPen(QPen(Qt::red, 2));
+        
+        // 立即更新预览图显示
+        updatePinScene();
+        
         QMessageBox::information(this, "添加引脚", "请在芯片区域内点击以添加引脚。\n靠近边缘会自动吸附到边缘，内部区域则创建自由位置引脚。");
     }
 }
