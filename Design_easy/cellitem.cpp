@@ -84,19 +84,7 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
             text += m_macroName;
             if (!m_instanceName.isEmpty()) text += ")";
         }
-        
-        // 计算字体大小，基于矩形尺寸
-        QFont font = painter->font();
-        // 基础字体大小为矩形宽度的5%
-        qreal baseFontSize = m_size.width() * 0.05;
-        // 限制字体大小在合理范围内
-        qreal fontSize = baseFontSize;
-        font.setPointSizeF(fontSize);
-        painter->setFont(font);
-        
-        // 计算文本区域，留出边距
-        QRectF textRect = boundingRect().adjusted(5, 5, -5, -5);
-        painter->drawText(textRect, Qt::AlignCenter, text);
+        painter->drawText(boundingRect().adjusted(5, 5, -5, -5), Qt::AlignCenter, text);
     }
 }
 

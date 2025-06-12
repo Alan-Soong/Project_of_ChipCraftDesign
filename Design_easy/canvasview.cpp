@@ -49,10 +49,19 @@ void CanvasView::wheelEvent(QWheelEvent *event)
     } else if (event->modifiers() & Qt::ControlModifier) {
         // 缩放
         const qreal scaleFactor = 1.1;
+        qreal currentScale = transform().m11(); // 获取当前缩放比例
+        
+        // 限制缩放范围在 0.1 到 10.0 之间
         if (event->angleDelta().y() > 0) {
-            scale(scaleFactor, scaleFactor);
+            // 放大
+            if (currentScale < 5.0) {
+                scale(scaleFactor, scaleFactor);
+            }
         } else {
-            scale(1.0 / scaleFactor, 1.0 / scaleFactor);
+            // 缩小
+            if (currentScale > 0.1) {
+                scale(1.0 / scaleFactor, 1.0 / scaleFactor);
+            }
         }
     } else {
         // 垂直滚动

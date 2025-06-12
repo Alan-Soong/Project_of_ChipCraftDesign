@@ -60,14 +60,14 @@ public:
     QGridLayout *gridLayout;
     QVBoxLayout *verticalLayout;
     QPushButton *addRectangleButton;
-    QSpacerItem *verticalSpacer;
     QPushButton *selectButton;
-    QSpacerItem *verticalSpacer_2;
     QPushButton *undoButton;
-    QSpacerItem *verticalSpacer_3;
     QPushButton *redoButton;
-    QSpacerItem *verticalSpacer_4;
     QPushButton *deleteButton;
+    QSpacerItem *verticalSpacer;
+    QSpacerItem *verticalSpacer_2;
+    QSpacerItem *verticalSpacer_3;
+    QSpacerItem *verticalSpacer_4;
 
     void setupUi(QMainWindow *MainWindow)
     {
@@ -155,17 +155,15 @@ public:
         verticalLayout->setObjectName("verticalLayout");
         addRectangleButton = new QPushButton(dockWidgetContents);
         addRectangleButton->setObjectName("addRectangleButton");
+        addRectangleButton->setEnabled(true);
         QSizePolicy sizePolicy1(QSizePolicy::Policy::Preferred, QSizePolicy::Policy::Expanding);
         sizePolicy1.setHorizontalStretch(0);
         sizePolicy1.setVerticalStretch(0);
         sizePolicy1.setHeightForWidth(addRectangleButton->sizePolicy().hasHeightForWidth());
         addRectangleButton->setSizePolicy(sizePolicy1);
+        addRectangleButton->setIconSize(QSize(10, 10));
 
         verticalLayout->addWidget(addRectangleButton);
-
-        verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
-
-        verticalLayout->addItem(verticalSpacer);
 
         selectButton = new QPushButton(dockWidgetContents);
         selectButton->setObjectName("selectButton");
@@ -174,20 +172,12 @@ public:
 
         verticalLayout->addWidget(selectButton);
 
-        verticalSpacer_2 = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
-
-        verticalLayout->addItem(verticalSpacer_2);
-
         undoButton = new QPushButton(dockWidgetContents);
         undoButton->setObjectName("undoButton");
         sizePolicy1.setHeightForWidth(undoButton->sizePolicy().hasHeightForWidth());
         undoButton->setSizePolicy(sizePolicy1);
 
         verticalLayout->addWidget(undoButton);
-
-        verticalSpacer_3 = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
-
-        verticalLayout->addItem(verticalSpacer_3);
 
         redoButton = new QPushButton(dockWidgetContents);
         redoButton->setObjectName("redoButton");
@@ -196,16 +186,28 @@ public:
 
         verticalLayout->addWidget(redoButton);
 
-        verticalSpacer_4 = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
-
-        verticalLayout->addItem(verticalSpacer_4);
-
         deleteButton = new QPushButton(dockWidgetContents);
         deleteButton->setObjectName("deleteButton");
         sizePolicy1.setHeightForWidth(deleteButton->sizePolicy().hasHeightForWidth());
         deleteButton->setSizePolicy(sizePolicy1);
 
         verticalLayout->addWidget(deleteButton);
+
+        verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        verticalLayout->addItem(verticalSpacer);
+
+        verticalSpacer_2 = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        verticalLayout->addItem(verticalSpacer_2);
+
+        verticalSpacer_3 = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        verticalLayout->addItem(verticalSpacer_3);
+
+        verticalSpacer_4 = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        verticalLayout->addItem(verticalSpacer_4);
 
 
         gridLayout->addLayout(verticalLayout, 0, 0, 1, 1);
@@ -268,6 +270,9 @@ public:
         menufile->setTitle(QCoreApplication::translate("MainWindow", "file", nullptr));
         menuhelp->setTitle(QCoreApplication::translate("MainWindow", "help", nullptr));
         addRectangleButton->setText(QCoreApplication::translate("MainWindow", "\346\267\273\345\212\240", nullptr));
+#if QT_CONFIG(tooltip)
+        selectButton->setToolTip(QCoreApplication::translate("MainWindow", "<html><head/><body><p><br/></p></body></html>", nullptr));
+#endif // QT_CONFIG(tooltip)
         selectButton->setText(QCoreApplication::translate("MainWindow", "\351\200\211\346\213\251", nullptr));
         undoButton->setText(QCoreApplication::translate("MainWindow", "\346\222\244\351\224\200", nullptr));
         redoButton->setText(QCoreApplication::translate("MainWindow", "\351\207\215\345\201\232", nullptr));
