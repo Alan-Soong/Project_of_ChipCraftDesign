@@ -44,6 +44,10 @@ private slots:
 
     void on_actiondm_triggered();
 
+    void on_actionsetLeftDock_triggered();
+
+    void on_actionhideLeftDock_triggered();
+
 private:
     Ui::MainWindow *ui;
     CanvasScene *scene;

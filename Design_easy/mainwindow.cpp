@@ -32,6 +32,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionexit, &QAction::triggered, this, &MainWindow::exportFiles);
     connect(ui->actionexit, &QAction::triggered, this, &MainWindow::close);
 
+    // 连接工具栏显示/隐藏动作
+    connect(ui->actionsetLeftDock, &QAction::triggered, this, &MainWindow::on_actionsetLeftDock_triggered);
+    connect(ui->actionhideLeftDock, &QAction::triggered, this, &MainWindow::on_actionhideLeftDock_triggered);
+
     // // 连接五个按钮的信号
     // connect(ui->addRectangleButton, &QPushButton::clicked, this, &MainWindow::on_addRectangleButton_clicked);
     // connect(ui->selectButton, &QPushButton::clicked, this, &MainWindow::on_selectButton_clicked);
@@ -502,5 +506,16 @@ void MainWindow::on_actiondm_triggered()
 {
     view->setGridSize(1000);
     scene->set_unit("dm");
+}
+
+void MainWindow::on_actionsetLeftDock_triggered()
+{
+    ui->dockWidget->show();
+    ui->dockWidget->raise();
+}
+
+void MainWindow::on_actionhideLeftDock_triggered()
+{
+    ui->dockWidget->hide();
 }
 
