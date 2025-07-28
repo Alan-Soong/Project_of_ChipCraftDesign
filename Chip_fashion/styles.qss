@@ -1,0 +1,239 @@
+/* ChipCraft Design Studio - Microsoft Fluent Design Style */
+
+/* 全局样式 */
+* {
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 主窗口 */
+QMainWindow {
+    background-color: #f3f3f3;
+    color: #323130;
+}
+
+/* 工具栏 */
+QToolBar {
+    background-color: #ffffff;
+    border: 1px solid #e1dfdd;
+    border-radius: 6px;
+    spacing: 4px;
+    padding: 8px;
+}
+
+QToolBar::separator {
+    background-color: #e1dfdd;
+    width: 1px;
+    margin: 8px 4px;
+}
+
+/* 状态栏 */
+QStatusBar {
+    background-color: #ffffff;
+    border-top: 1px solid #e1dfdd;
+    padding: 8px;
+    font-size: 12px;
+    color: #605e5c;
+}
+
+/* 滚动条 */
+QScrollBar:vertical {
+    background-color: #f3f2f1;
+    width: 12px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #c8c6c4;
+    border-radius: 6px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #a19f9d;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background-color: #f3f2f1;
+    height: 12px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #c8c6c4;
+    border-radius: 6px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #a19f9d;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* 选项卡 */
+QTabWidget::pane {
+    border: 2px solid #e1dfdd;
+    border-radius: 8px;
+    background-color: #ffffff;
+}
+
+QTabBar::tab {
+    background-color: #f3f2f1;
+    border: 2px solid #e1dfdd;
+    border-bottom: none;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding: 8px 16px;
+    margin-right: 2px;
+    font-size: 14px;
+    color: #605e5c;
+}
+
+QTabBar::tab:selected {
+    background-color: #ffffff;
+    color: #323130;
+    border-color: #0078d4;
+}
+
+QTabBar::tab:hover:!selected {
+    background-color: #edebe9;
+    color: #323130;
+}
+
+/* 表格 */
+QTableWidget, QTableView {
+    background-color: #ffffff;
+    border: 2px solid #e1dfdd;
+    border-radius: 8px;
+    gridline-color: #f3f2f1;
+    selection-background-color: #e8f4fd;
+}
+
+QTableWidget::item, QTableView::item {
+    padding: 8px;
+    border-bottom: 1px solid #f3f2f1;
+}
+
+QTableWidget::item:selected, QTableView::item:selected {
+    background-color: #e8f4fd;
+    color: #323130;
+}
+
+QHeaderView::section {
+    background-color: #faf9f8;
+    border: none;
+    border-bottom: 2px solid #e1dfdd;
+    padding: 8px 12px;
+    font-weight: 600;
+    color: #323130;
+}
+
+/* 树形视图 */
+QTreeWidget, QTreeView {
+    background-color: #ffffff;
+    border: 2px solid #e1dfdd;
+    border-radius: 8px;
+    selection-background-color: #e8f4fd;
+}
+
+QTreeWidget::item, QTreeView::item {
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin: 1px;
+}
+
+QTreeWidget::item:selected, QTreeView::item:selected {
+    background-color: #e8f4fd;
+    color: #323130;
+}
+
+QTreeWidget::item:hover, QTreeView::item:hover {
+    background-color: #f3f2f1;
+}
+
+/* 进度条 */
+QProgressBar {
+    background-color: #f3f2f1;
+    border: 2px solid #e1dfdd;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #323130;
+}
+
+QProgressBar::chunk {
+    background-color: #0078d4;
+    border-radius: 8px;
+}
+
+/* 分隔器 */
+QSplitter::handle {
+    background-color: #e1dfdd;
+}
+
+QSplitter::handle:horizontal {
+    width: 2px;
+}
+
+QSplitter::handle:vertical {
+    height: 2px;
+}
+
+QSplitter::handle:pressed {
+    background-color: #0078d4;
+}
+
+/* 工具提示 */
+QToolTip {
+    background-color: #323130;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+/* 消息框 */
+QMessageBox {
+    background-color: #ffffff;
+    color: #323130;
+}
+
+QMessageBox QPushButton {
+    min-width: 80px;
+    min-height: 32px;
+}
+
+/* 自定义颜色变量（注释形式，用于开发参考） */
+/*
+Primary Blue: #0078d4
+Primary Blue Hover: #106ebe
+Primary Blue Pressed: #005a9e
+
+Success Green: #107c10
+Success Green Hover: #0e6e0e
+
+Error Red: #d13438
+Error Red Hover: #b4282c
+
+Warning Orange: #ff8c00
+Warning Orange Hover: #e67700
+
+Neutral Colors:
+- White: #ffffff
+- Light Gray: #faf9f8
+- Medium Light Gray: #f3f2f1
+- Medium Gray: #e1dfdd
+- Dark Medium Gray: #c8c6c4
+- Dark Gray: #a19f9d
+- Darker Gray: #605e5c
+- Dark Text: #323130
+*/

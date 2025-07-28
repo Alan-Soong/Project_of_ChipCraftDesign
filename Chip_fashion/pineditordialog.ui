@@ -1,0 +1,642 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PinEditorDialog</class>
+ <widget class="QDialog" name="PinEditorDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>引脚编辑器</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">/* 对话框整体样式 */
+QDialog {
+    background-color: #faf9f8;
+    font-family: "Segoe UI", "Microsoft YaHei";
+    font-size: 14px;
+}
+
+/* 标签样式 */
+QLabel {
+    color: #323130;
+    font-weight: 500;
+    padding: 8px 4px;
+}
+
+/* 输入框样式 */
+QLineEdit, QSpinBox, QDoubleSpinBox {
+    background-color: #ffffff;
+    border: 2px solid #e1dfdd;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #323130;
+}
+
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border-color: #0078d4;
+    outline: none;
+}
+
+QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover {
+    border-color: #c8c6c4;
+}
+
+/* 组合框样式 */
+QComboBox {
+    background-color: #ffffff;
+    border: 2px solid #e1dfdd;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #323130;
+    min-width: 120px;
+}
+
+QComboBox:focus {
+    border-color: #0078d4;
+}
+
+QComboBox:hover {
+    border-color: #c8c6c4;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 30px;
+}
+
+QComboBox::down-arrow {
+    image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzMyMzEzMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+);
+}
+
+/* 复选框样式 */
+QCheckBox {
+    color: #323130;
+    font-size: 14px;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #e1dfdd;
+    border-radius: 3px;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #0078d4;
+    border-color: #0078d4;
+    image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEzIDRMNiAxMUwzIDgiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+);
+}
+
+/* 按钮样式 */
+QPushButton {
+    background-color: #ffffff;
+    border: 2px solid #e1dfdd;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #323130;
+    min-height: 20px;
+}
+
+QPushButton:hover {
+    background-color: #f3f2f1;
+    border-color: #c8c6c4;
+}
+
+QPushButton:pressed {
+    background-color: #edebe9;
+    border-color: #a19f9d;
+}
+
+QPushButton:focus {
+    border-color: #0078d4;
+    outline: none;
+}
+
+/* 主要按钮样式 */
+QPushButton#saveButton, QPushButton#acceptButton {
+    background-color: #0078d4;
+    color: #ffffff;
+    border-color: #0078d4;
+}
+
+QPushButton#saveButton:hover, QPushButton#acceptButton:hover {
+    background-color: #106ebe;
+    border-color: #106ebe;
+}
+
+QPushButton#addPinButton {
+    background-color: #107c10;
+    color: #ffffff;
+    border-color: #107c10;
+}
+
+QPushButton#addPinButton:hover {
+    background-color: #0e6e0e;
+    border-color: #0e6e0e;
+}
+
+QPushButton#removePinButton {
+    background-color: #d13438;
+    color: #ffffff;
+    border-color: #d13438;
+}
+
+QPushButton#removePinButton:hover {
+    background-color: #b4282c;
+    border-color: #b4282c;
+}
+
+/* 列表控件样式 */
+QListWidget {
+    background-color: #ffffff;
+    border: 2px solid #e1dfdd;
+    border-radius: 6px;
+    padding: 4px;
+    selection-background-color: #f3f2f1;
+}
+
+QListWidget::item {
+    padding: 8px;
+    border-radius: 4px;
+    margin: 2px;
+}
+
+QListWidget::item:selected {
+    background-color: #e8f4fd;
+    color: #323130;
+}
+
+QListWidget::item:hover {
+    background-color: #f3f2f1;
+}
+
+/* 图形视图样式 */
+QGraphicsView {
+    background-color: #ffffff;
+    border: 2px solid #e1dfdd;
+    border-radius: 6px;
+}
+
+QGraphicsView:focus {
+    border-color: #0078d4;
+}
+
+/* 分割器样式 */
+QSplitter::handle {
+    background-color: #e1dfdd;
+    width: 4px;
+    border-radius: 2px;
+}
+
+QSplitter::handle:hover {
+    background-color: #c8c6c4;
+}
+
+/* 组框样式 */
+QGroupBox {
+    font-weight: 600;
+    font-size: 16px;
+    color: #323130;
+    border: 2px solid #e1dfdd;
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 8px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 8px 0 8px;
+    background-color: #faf9f8;
+}</string>
+  </property>
+  <layout class="QHBoxLayout" name="mainLayout">
+   <property name="spacing">
+    <number>20</number>
+   </property>
+   <property name="leftMargin">
+    <number>24</number>
+   </property>
+   <property name="topMargin">
+    <number>24</number>
+   </property>
+   <property name="rightMargin">
+    <number>24</number>
+   </property>
+   <property name="bottomMargin">
+    <number>24</number>
+   </property>
+   <item>
+    <widget class="QSplitter" name="splitter">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QWidget" name="leftWidget" native="true">
+      <layout class="QVBoxLayout" name="leftLayout">
+       <property name="spacing">
+        <number>16</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="layoutLabel">
+         <property name="text">
+          <string>引脚布局预览:</string>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">font-weight: 600; font-size: 16px;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGraphicsView" name="pinGraphicsView">
+         <property name="minimumSize">
+          <size>
+          <width>500</width>
+          <height>400</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="operationButtonLayout">
+         <property name="spacing">
+          <number>12</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="addPinButton">
+           <property name="text">
+            <string>+ 添加引脚</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removePinButton">
+           <property name="text">
+            <string>- 删除引脚</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="saveButton">
+           <property name="text">
+            <string>保存到文件</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="loadButton">
+           <property name="text">
+            <string>从文件加载</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="rightWidget" native="true">
+      <layout class="QVBoxLayout" name="rightLayout">
+       <property name="spacing">
+        <number>16</number>
+       </property>
+       <item>
+        <widget class="QGroupBox" name="chipPropertiesGroup">
+         <property name="title">
+          <string>芯片属性</string>
+         </property>
+         <layout class="QFormLayout" name="chipFormLayout">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>12</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>12</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="nameLabel">
+            <property name="text">
+             <string>芯片名称:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="nameEdit">
+            <property name="placeholderText">
+             <string>请输入芯片名称</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="instanceLabel">
+            <property name="text">
+             <string>实例名称:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="instanceEdit">
+            <property name="placeholderText">
+             <string>请输入实例名称</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="colorLabel">
+            <property name="text">
+             <string>显示颜色:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="colorCombo">
+            <item>
+             <property name="text">
+              <string>浅灰色</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>蓝色</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>绿色</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>黄色</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>红色</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>青色</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>洋红色</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="sizeLabel">
+            <property name="text">
+             <string>尺寸:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <layout class="QHBoxLayout" name="sizeLayout">
+            <property name="spacing">
+             <number>8</number>
+            </property>
+            <item>
+             <widget class="QSpinBox" name="widthSpin">
+              <property name="minimum">
+               <number>50</number>
+              </property>
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+              <property name="value">
+               <number>150</number>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="xLabel">
+              <property name="text">
+               <string>×</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="heightSpin">
+              <property name="minimum">
+               <number>50</number>
+              </property>
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+              <property name="value">
+               <number>100</number>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="sizeSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+          <item row="4" column="0" colspan="2">
+           <widget class="QCheckBox" name="resizableCheckBox">
+            <property name="text">
+             <string>启用大小调整</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="pinListGroup">
+         <property name="title">
+          <string>引脚列表</string>
+         </property>
+         <layout class="QVBoxLayout" name="pinListLayout">
+          <property name="spacing">
+           <number>12</number>
+          </property>
+          <item>
+           <widget class="QListWidget" name="pinList">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>150</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="pinPropertiesGroup">
+         <property name="title">
+          <string>引脚属性</string>
+         </property>
+         <layout class="QFormLayout" name="pinFormLayout">
+          <property name="horizontalSpacing">
+           <number>12</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>12</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="pinIdLabel">
+            <property name="text">
+             <string>引脚ID:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="pinIdEdit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="sideLabel">
+            <property name="text">
+             <string>位置:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="sideCombo">
+            <item>
+             <property name="text">
+              <string>top</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>bottom</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>left</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>right</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>custom</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="percentageLabel">
+            <property name="text">
+             <string>百分比:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QSpinBox" name="percentageSpin">
+            <property name="suffix">
+             <string>%</string>
+            </property>
+            <property name="maximum">
+             <number>100</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="dialogButtonLayout">
+         <property name="spacing">
+          <number>12</number>
+         </property>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="acceptButton">
+           <property name="text">
+            <string>确定</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="cancelButton">
+           <property name="text">
+            <string>取消</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
