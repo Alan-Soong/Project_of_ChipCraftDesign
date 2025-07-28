@@ -108,6 +108,12 @@ private slots:
 
     void on_removePinButton_clicked();
 
+    void on_sideCombo_currentIndexChanged(int index);
+
+    void on_xSpinBox_valueChanged(double value);
+
+    void on_ySpinBox_valueChanged(double value);
+
 private:
     QGraphicsItem* targetItem = nullptr;
     Ui::Dialogs *ui;
@@ -127,10 +133,11 @@ private:
     void addPin(const QString& side, qreal percentage, qreal size, const QString& id, qreal x = 0, qreal y = 0);
     void updatePins();
     void removePin(const QString& id); // 新增：删除引脚方法
-    void saveToFile(const QString& defaultName); // 声明
-    void loadFromFile(const QString& defaultName); // 声明
+    void saveToFile(const QString& filename); // 声明
+    void loadFromFile(const QString& filename); // 声明
     void setupPinScene();
     void updatePinScene();
+    void updateCoordinateInputs(bool enabled);
 };
 
 

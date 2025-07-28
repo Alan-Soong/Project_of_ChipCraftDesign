@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     scene = new CanvasScene(this);
-    scene->setSceneRect(0, 0, 800, 600);
+    scene->setSceneRect(0, 0, 4000, 4000);
     view = new CanvasView(scene);
     view->setParent(this);
     setCentralWidget(view);
@@ -32,17 +32,21 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionexit, &QAction::triggered, this, &MainWindow::exportFiles);
     connect(ui->actionexit, &QAction::triggered, this, &MainWindow::close);
 
-    // 连接五个按钮的信号
-    connect(ui->addRectangleButton, &QPushButton::clicked, this, &MainWindow::on_addRectangleButton_clicked);
-    connect(ui->selectButton, &QPushButton::clicked, this, &MainWindow::on_selectButton_clicked);
-    connect(ui->undoButton, &QPushButton::clicked, this, &MainWindow::on_undoButton_clicked);
-    connect(ui->redoButton, &QPushButton::clicked, this, &MainWindow::on_redoButton_clicked);
-    connect(ui->deleteButton, &QPushButton::clicked, this, &MainWindow::on_deleteButton_clicked);
+    // 连接工具栏显示/隐藏动作
+    connect(ui->actionsetLeftDock, &QAction::triggered, this, &MainWindow::on_actionsetLeftDock_triggered);
+    connect(ui->actionhideLeftDock, &QAction::triggered, this, &MainWindow::on_actionhideLeftDock_triggered);
+
+    // // 连接五个按钮的信号
+    // connect(ui->addRectangleButton, &QPushButton::clicked, this, &MainWindow::on_addRectangleButton_clicked);
+    // connect(ui->selectButton, &QPushButton::clicked, this, &MainWindow::on_selectButton_clicked);
+    // connect(ui->undoButton, &QPushButton::clicked, this, &MainWindow::on_undoButton_clicked);
+    // connect(ui->redoButton, &QPushButton::clicked, this, &MainWindow::on_redoButton_clicked);
+    // connect(ui->deleteButton, &QPushButton::clicked, this, &MainWindow::on_deleteButton_clicked);
 
     
     // 添加一个默认的芯片
     CellItem* defaultCell = new CellItem();
-    defaultCell->setPos(100, 100);
+    defaultCell->setPos(2000, 2000);
     defaultCell->setSize(QSizeF(150, 100));
     defaultCell->setMacroName("MC1");
     defaultCell->setInstanceName("C1");
@@ -65,7 +69,7 @@ void MainWindow::newFile()
     
     // 添加一个默认的芯片
     CellItem* defaultCell = new CellItem();
-    defaultCell->setPos(100, 100);
+    defaultCell->setPos(2000, 2000);
     defaultCell->setSize(QSizeF(150, 100));
     defaultCell->setMacroName("MC1");
     defaultCell->setInstanceName("C1");
@@ -426,7 +430,7 @@ bool MainWindow::generateDesignFile(const QString& filePath, const QList<CellIte
 void MainWindow::on_addRectangleButton_clicked()
 {
     // 在场景中心添加矩形
-    QPointF pos(400, 300); // 默认位置（场景中心）
+    QPointF pos(2000, 2000); // 默认位置（场景中心）
     undoStack->push(new AddRectangleCommand(scene, pos, undoStack));
     qDebug() << "Added rectangle at" << pos;
 }
@@ -483,3 +487,35 @@ void MainWindow::on_deleteButton_clicked()
         }
     }
 }
+
+void MainWindow::on_actionmm_triggered()
+{
+    view->setGridSize(10);
+    scene->set_unit("mm");
+}
+
+
+void MainWindow::on_actioncm_triggered()
+{
+    view->setGridSize(100);
+    scene->set_unit("cm");
+}
+
+
+void MainWindow::on_actiondm_triggered()
+{
+    view->setGridSize(1000);
+    scene->set_unit("dm");
+}
+
+void MainWindow::on_actionsetLeftDock_triggered()
+{
+    ui->dockWidget->show();
+    ui->dockWidget->raise();
+}
+
+void MainWindow::on_actionhideLeftDock_triggered()
+{
+    ui->dockWidget->hide();
+}
+

@@ -12,6 +12,7 @@
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QPainterPath>
 
 class Dialogs;
 class PinItem;
@@ -50,10 +51,13 @@ public:
         QString side; // "top", "bottom", "left", "right", "custom"
         qreal percentage; // 0.0 to 100.0
         QString id;
-        qreal x;
-        qreal y;
+        qreal x;  // 绝对坐标
+        qreal y;  // 绝对坐标
+        qreal relativeX;  // 相对位置比例 (0.0 to 1.0)
+        qreal relativeY;  // 相对位置比例 (0.0 to 1.0)
         Connector() = default;
-        Connector(const QString& s, qreal p, const QString& i, qreal xPos = 0, qreal yPos = 0) : side(s), percentage(p), id(i), x(xPos), y(yPos) {}
+        Connector(const QString& s, qreal p, const QString& i, qreal xPos = 0, qreal yPos = 0) 
+            : side(s), percentage(p), id(i), x(xPos), y(yPos), relativeX(0), relativeY(0) {}
         QPointF calculatePos(const QSizeF& cellSize, qreal pinSize) const;
     };
     
@@ -82,6 +86,12 @@ public:
     void setInstanceName(const QString& name) { m_instanceName = name; }
     QString getInstanceName() const { return m_instanceName; }
 
+    // 添加新方法
+    QPainterPath getShape() const;  // 获取矩形的形状路径
+    bool isOverlapping(const CellItem* other) const;  // 检查是否与其他矩形重合
+    QPainterPath getOverlapArea(const CellItem* other) const;  // 获取重合区域
+    void updateOverlapState();  // 更新重合状态
+
 protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 
@@ -106,6 +116,9 @@ private:
     
     // 存储连线信息：目标CellItem，源引脚ID，目标引脚ID
     QList<QPair<CellItem*, QPair<QString, QString>>> m_connections;
+
+    QList<QPainterPath> m_overlapAreas;  // 存储重合区域
+    QList<CellItem*> m_overlappingItems;  // 存储重合的矩形项
 };
 
 // 注册 Connector 到 Qt 元对象系统

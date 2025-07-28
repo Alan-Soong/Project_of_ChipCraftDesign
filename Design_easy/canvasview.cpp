@@ -49,10 +49,19 @@ void CanvasView::wheelEvent(QWheelEvent *event)
     } else if (event->modifiers() & Qt::ControlModifier) {
         // 缩放
         const qreal scaleFactor = 1.1;
+        qreal currentScale = transform().m11(); // 获取当前缩放比例
+        
+        // 限制缩放范围在 0.1 到 10.0 之间
         if (event->angleDelta().y() > 0) {
-            scale(scaleFactor, scaleFactor);
+            // 放大
+            if (currentScale < 5.0) {
+                scale(scaleFactor, scaleFactor);
+            }
         } else {
-            scale(1.0 / scaleFactor, 1.0 / scaleFactor);
+            // 缩小
+            if (currentScale > 0.1) {
+                scale(1.0 / scaleFactor, 1.0 / scaleFactor);
+            }
         }
     } else {
         // 垂直滚动
@@ -90,12 +99,30 @@ void CanvasView::mouseMoveEvent(QMouseEvent *event)
     QGraphicsView::mouseMoveEvent(event);
 }
 
+void CanvasView::setGridSize(int size)
+{
+    gridSize = size;
+    update();
+}
+
+void CanvasView::setGridVisible(bool visible)
+{
+    gridVisible = visible;
+    update();
+}
+
+void CanvasView::setGridColor(const QColor &color)
+{
+    gridColor = color;
+    update();
+}
+
 void CanvasView::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsView::drawBackground(painter, rect);
-    
+
+    if (!gridVisible) return;
     // 绘制网格
-    const int gridSize = 20;
     const QRectF sceneRect = this->sceneRect();
     
     qreal left = int(rect.left()) - (int(rect.left()) % gridSize);

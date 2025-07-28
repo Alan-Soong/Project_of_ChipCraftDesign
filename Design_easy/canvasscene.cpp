@@ -14,7 +14,7 @@
 CanvasScene::CanvasScene(QObject *parent)
     : QGraphicsScene(parent), undoStack(new QUndoStack(this))
 {
-    setSceneRect(0, 0, 2000, 2000);
+    setSceneRect(-1000, -1000, 1000, 1000);
     m_tempLine = nullptr;
 }
 
@@ -78,7 +78,17 @@ void CanvasScene::zoomOut()
 void CanvasScene::setZoomFactor(qreal factor)
 {
     m_zoomFactor = qBound(m_minZoom, factor, m_maxZoom);
-    // 这里需要更新所有视图的缩放
+    // 更新所有视图的变换矩阵
+    for (QGraphicsView *view : views()) {
+        view->resetTransform();
+        view->scale(m_zoomFactor, m_zoomFactor);
+
+        // 根据缩放因子调整场景大小
+        qreal newSize = 2000 * (1.0 / factor);
+        setSceneRect(-newSize/2, -newSize/2, newSize, newSize);
+    }
+
+    update();
 }
 
 void CanvasScene::setRulerVisible(bool visible)
@@ -92,7 +102,11 @@ void CanvasScene::setRulerColor(const QColor &color)
     m_rulerColor = color;
     update();
 }
-
+void CanvasScene::set_unit(const QString unit)
+{
+    to_unit = unit;
+    update();
+}
 void CanvasScene::addCellItem(CellItem *item)
 {
     if (!item) return;
@@ -325,6 +339,29 @@ void CanvasScene::updateAllConnectionLines()
     }
 }
 
+void CanvasScene::updateOverlapStates()
+{
+    // 获取场景中所有的CellItem
+    QList<QGraphicsItem*> items = this->items();
+    for (QGraphicsItem* item : items) {
+        CellItem* cell = dynamic_cast<CellItem*>(item);
+        if (cell) {
+            cell->updateOverlapState();
+        }
+    }
+}
+
+void CanvasScene::addRectangle()
+{
+    // 创建新的CellItem
+    CellItem* newItem = new CellItem();
+    newItem->setPos(0, 0);  // 设置初始位置
+    addCellItem(newItem);
+    
+    // 在添加新矩形后更新所有矩形的重合状态
+    updateOverlapStates();
+}
+
 void CanvasScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     if (!event) return;
@@ -389,6 +426,9 @@ void CanvasScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     
     // 更新所有连线位置
     updateAllConnectionLines();
+    
+    // 更新重合状态
+    updateOverlapStates();
 }
 
 void CanvasScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
@@ -439,18 +479,18 @@ void CanvasScene::wheelEvent(QGraphicsSceneWheelEvent *event)
 void CanvasScene::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsScene::drawBackground(painter, rect);
-    
+
     if (!m_gridVisible) return;
-    
+
     // 绘制网格
     QPen pen(m_gridColor, 0);
     painter->setPen(pen);
-    
+
     qreal left = int(rect.left()) - (int(rect.left()) % m_gridSize);
     qreal top = int(rect.top()) - (int(rect.top()) % m_gridSize);
-    
+
     QVector<QLineF> lines;
-    
+
     // 绘制垂直线
     for (qreal x = left; x < rect.right(); x += m_gridSize) {
         // 每隔m_majorGridSpacing个网格绘制一条粗线
@@ -464,7 +504,7 @@ void CanvasScene::drawBackground(QPainter *painter, const QRectF &rect)
         painter->setPen(pen);
         painter->drawLine(QLineF(x, rect.top(), x, rect.bottom()));
     }
-    
+
     // 绘制水平线
     for (qreal y = top; y < rect.bottom(); y += m_gridSize) {
         // 每隔m_majorGridSpacing个网格绘制一条粗线
@@ -493,53 +533,100 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
     
-    QFont font = painter->font();
-    font.setPointSize(8);
-    painter->setFont(font);
-    
-    QFontMetrics fm(font);
-    
     // 获取视图的可见区域
     QRectF visibleRect;
     QList<QGraphicsView*> views = this->views();
     if (!views.isEmpty()) {
         QGraphicsView* view = views.first();
         visibleRect = view->mapToScene(view->viewport()->rect()).boundingRect();
-    } else {
-        visibleRect = rect;
-    }
-    
-    // 绘制水平标尺
-    QRectF horizontalRuler(visibleRect.left(), visibleRect.top(), visibleRect.width(), m_rulerSize);
-    painter->fillRect(horizontalRuler, QColor(240, 240, 240));
-    painter->drawRect(horizontalRuler);
-    
-    // 绘制垂直标尺
-    QRectF verticalRuler(visibleRect.left(), visibleRect.top(), m_rulerSize, visibleRect.height());
-    painter->fillRect(verticalRuler, QColor(240, 240, 240));
-    painter->drawRect(verticalRuler);
-    
-    // 绘制水平标尺刻度
-    for (int x = int(visibleRect.left()) - (int(visibleRect.left()) % m_gridSize); x < visibleRect.right(); x += m_gridSize) {
-        // 每隔m_majorGridSpacing个网格绘制一个带数字的刻度
-        if (int(x / m_gridSize) % m_majorGridSpacing == 0) {
-            painter->drawLine(x, visibleRect.top(), x, visibleRect.top() + m_rulerTickSize * 2);
-            QString text = QString::number(x);
-            painter->drawText(x - fm.horizontalAdvance(text) / 2, visibleRect.top() + m_rulerSize - m_rulerTextOffset, text);
-        } else {
-            painter->drawLine(x, visibleRect.top(), x, visibleRect.top() + m_rulerTickSize);
+        
+        // 计算标尺宽度为视口宽度的相对比例，并考虑缩放因子
+        qreal viewportWidth = view->viewport()->width();
+        qreal scale = view->transform().m11(); // 获取水平缩放比例
+        
+        // 基础标尺宽度为视口宽度的3%，但会根据缩放比例调整
+        qreal baseRulerWidth = viewportWidth * 0.03;
+        // 缩放时标尺宽度会相应调整
+        qreal rulerWidth = baseRulerWidth / scale;
+        
+        // 设置字体大小，根据缩放比例动态调整
+        QFont font = painter->font();
+        // 基础字体大小为12，根据缩放比例调整
+        qreal baseFontSize = 12.0;
+        qreal fontSize = baseFontSize / scale;
+        font.setPointSizeF(fontSize);
+        painter->setFont(font);
+        
+        QFontMetrics fm(font);
+        
+        // 绘制水平标尺
+        QRectF horizontalRuler(visibleRect.left(), visibleRect.top(), visibleRect.width(), rulerWidth);
+        painter->fillRect(horizontalRuler, QColor(240, 240, 240));
+        painter->drawRect(horizontalRuler);
+        
+        // 绘制垂直标尺
+        QRectF verticalRuler(visibleRect.left(), visibleRect.top(), rulerWidth, visibleRect.height());
+        painter->fillRect(verticalRuler, QColor(240, 240, 240));
+        painter->drawRect(verticalRuler);
+        
+        // 计算合适的刻度间隔，使屏幕内显示固定数量的刻度
+        const int targetTickCount = 80; // 目标刻度数量
+        qreal visibleWidth = visibleRect.width();
+        qreal visibleHeight = visibleRect.height();
+        
+        // 计算基础间隔
+        qreal baseInterval = qMax(visibleWidth, visibleHeight) / targetTickCount;
+        
+        // 将间隔调整为网格大小的整数倍
+        qreal gridMultiplier = qCeil(baseInterval / m_gridSize);
+        qreal interval = m_gridSize * gridMultiplier;
+        
+        // 主刻度间隔为普通间隔的5倍
+        qreal majorInterval = interval * 5;
+        
+        // 获取网格单位（假设m_gridSize为10表示1mm）
+        qreal gridUnit = m_gridSize / 10.0; // 1个网格单位对应的实际距离（mm）
+        
+        // 单位转换函数
+        auto convertUnit = [](qreal value, const QString& fromUnit, const QString& toUnit) -> qreal {
+            if (fromUnit == "mm" && toUnit == "cm") {
+                return value / 10.0;
+            } else if (fromUnit == "mm" && toUnit == "dm") {
+                return value / 100.0;
+            }
+            return value;
+        };
+        
+        // 绘制水平标尺刻度
+        for (qreal x = qFloor(visibleRect.left() / interval) * interval; x < visibleRect.right(); x += interval) {
+            // 每隔majorInterval绘制一个带数字的刻度
+            if (qAbs(fmod(x, majorInterval)) < 0.1) {
+                painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.3));
+                // 将坐标转换为实际距离（以毫米为基准）
+                qreal distance = x * gridUnit; // 距离（mm）
+                // 根据当前单位转换距离
+                qreal convertedDistance = convertUnit(distance, "mm", to_unit);
+                QString text = QString::number(convertedDistance, 'f', 1) + to_unit;
+                painter->drawText(x - fm.horizontalAdvance(text) / 2, visibleRect.top() + rulerWidth * 0.8, text);
+            } else {
+                painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.2));
+            }
         }
-    }
-    
-    // 绘制垂直标尺刻度
-    for (int y = int(visibleRect.top()) - (int(visibleRect.top()) % m_gridSize); y < visibleRect.bottom(); y += m_gridSize) {
-        // 每隔m_majorGridSpacing个网格绘制一个带数字的刻度
-        if (int(y / m_gridSize) % m_majorGridSpacing == 0) {
-            painter->drawLine(visibleRect.left(), y, visibleRect.left() + m_rulerTickSize * 2, y);
-            QString text = QString::number(y);
-            painter->drawText(visibleRect.left() + m_rulerTextOffset, y + fm.height() / 2, text);
-        } else {
-            painter->drawLine(visibleRect.left(), y, visibleRect.left() + m_rulerTickSize, y);
+        
+        // 绘制垂直标尺刻度
+        for (qreal y = qFloor(visibleRect.top() / interval) * interval; y < visibleRect.bottom(); y += interval) {
+            // 每隔majorInterval绘制一个带数字的刻度
+            if (qAbs(fmod(y, majorInterval)) < 0.1) {
+                painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.3, y));
+                // 将坐标转换为实际距离（以毫米为基准）
+                qreal distance = y * gridUnit; // 距离（mm）
+                // 根据当前单位转换距离
+                qreal convertedDistance = convertUnit(distance, "mm", to_unit);
+                QString text = QString::number(convertedDistance, 'f', 1) + to_unit;
+                painter->drawText(visibleRect.left() + rulerWidth * 0.2, y + fm.height() / 2, text);
+            } else {
+                painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.2, y));
+            }
         }
     }
     
