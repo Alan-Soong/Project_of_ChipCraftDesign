@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include "canvasscene.h"
 #include "canvasview.h"
+#include "connectionline.h"
 #include "chipmanager.h"
 #include "filemanager.h"
 #include "componentsettingsdialog.h"
@@ -13,7 +14,9 @@
 #include <QFile>
 #include <QTextStream>
 #include <QApplication>
+#include <QTimer>
 #include <QStatusBar>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -26,22 +29,22 @@ MainWindow::MainWindow(QWidget *parent)
     , m_isModified(false)
 {
     ui->setupUi(this);
-    
+
     // 设置应用程序图标
     setWindowIcon(QIcon(":/app_icon.svg"));
-    
+
     loadStyleSheet();
     setupUI();
     setupManagers();
     connectSignals();
-    
+
     updateWindowTitle();
-    
+
     // 设置状态栏
     statusBar()->showMessage("就绪", 2000);
-    
-    // 创建初始芯片
-    on_addRectangleButton_clicked();
+
+    // 注释掉自动创建初始芯片，让用户手动添加或通过文件加载
+    // on_addRectangleButton_clicked();
 }
 
 MainWindow::~MainWindow()
@@ -51,13 +54,20 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    // 设置场景和视图
+    // 设置场景和视图，默认显示0,0到100,100的区域
     m_scene = new CanvasScene(this);
-    m_scene->setSceneRect(0, 0, 4000, 4000);
-    
+    m_scene->setSceneRect(0, 0, 100, 100);
+
     m_view = new CanvasView(m_scene);
     m_view->setParent(this);
     setCentralWidget(m_view);
+
+    // 初始视图适配场景矩形
+    QTimer::singleShot(100, [this]() {
+        if (m_view && m_scene) {
+            m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+        }
+    });
 }
 
 void MainWindow::loadStyleSheet()
@@ -68,7 +78,7 @@ void MainWindow::loadStyleSheet()
         // 如果资源文件不存在，尝试从当前目录加载
         styleFile.setFileName("styles.qss");
     }
-    
+
     if (styleFile.open(QFile::ReadOnly)) {
         QTextStream stream(&styleFile);
         QString styleSheet = stream.readAll();
@@ -134,9 +144,9 @@ void MainWindow::newFile()
     m_currentFilePath.clear();
     m_chipManager->resetChipCounter();
     m_isModified = false;
-    
+
     updateWindowTitle("新文件");
-    
+
     // 创建初始芯片
     on_addRectangleButton_clicked();
 }
@@ -150,6 +160,9 @@ void MainWindow::openFile()
         m_currentFilePath = filePath;
         m_isModified = false;
         updateWindowTitle(QFileInfo(filePath).fileName());
+
+        // 使用QTimer延迟调整视图，确保所有芯片都已渲染完成
+        QTimer::singleShot(100, this, &MainWindow::fitViewToContent);
     } else {
         QMessageBox::warning(this, "错误", "无法打开文件：" + m_fileManager->getLastError());
     }
@@ -201,15 +214,16 @@ void MainWindow::exportFiles()
 
 void MainWindow::on_addRectangleButton_clicked()
 {
-    QPointF pos(2000, 2000);
-    
-    // 使用命令模式支持撤销/重做
-    int chipCounter = m_chipManager->getChipCounter();
-    m_undoStack->push(new AddRectangleCommand(m_scene, pos, chipCounter, m_undoStack));
-    
+    // 根据当前场景矩形确定合理的添加位置
+    QRectF sceneRect = m_scene->sceneRect();
+    QPointF pos(sceneRect.width() * 0.5, sceneRect.height() * 0.5); // 场景中心
+
+    // 使用命令模式支持撤销/重做，传入ChipManager而不是计数器
+    m_undoStack->push(new AddRectangleCommand(m_scene, pos, m_chipManager, m_undoStack));
+
     m_isModified = true;
     updateWindowTitle();
-    
+
     qDebug() << "添加芯片到位置" << pos;
 }
 
@@ -259,7 +273,7 @@ void MainWindow::on_deleteButton_clicked()
             m_undoStack->push(new DeleteRectangleCommand(m_scene, cellItem, m_undoStack));
         }
     }
-    
+
     m_isModified = true;
     updateWindowTitle();
 }
@@ -282,7 +296,7 @@ void MainWindow::onComponentSettingsSaved()
 void MainWindow::updateWindowTitle(const QString& fileName)
 {
     QString title = "芯片设计工具";
-    
+
     if (!fileName.isEmpty()) {
         title += " - " + fileName;
     } else if (!m_currentFilePath.isEmpty()) {
@@ -290,10 +304,125 @@ void MainWindow::updateWindowTitle(const QString& fileName)
     } else {
         title += " - 新文件";
     }
-    
+
     if (m_isModified) {
         title += " *";
     }
-    
+
     setWindowTitle(title);
+}
+
+void MainWindow::fitViewToContent()
+{
+    if (!m_scene || !m_view) return;
+
+    // 优先使用场景矩形（DieSize定义的区域）
+    QRectF sceneRect = m_scene->sceneRect();
+    if (!sceneRect.isNull() && sceneRect.width() > 0 && sceneRect.height() > 0) {
+        qDebug() << "使用场景矩形适配视图:" << sceneRect;
+
+        // 计算合适的缩放，让芯片有足够的显示空间
+        // 获取所有芯片，分析它们的平均大小
+        QList<CellItem*> cellItems = m_scene->getAllCellItems();
+        qreal averageChipSize = 10.0; // 默认芯片大小
+
+        if (!cellItems.isEmpty()) {
+            qreal totalSize = 0;
+            for (CellItem* item : cellItems) {
+                QSizeF chipSize = item->size();
+                totalSize += (chipSize.width() + chipSize.height()) / 2.0;
+            }
+            averageChipSize = totalSize / cellItems.size();
+        }
+
+        // 根据芯片平均大小计算合适的缩放
+        // 目标：让平均芯片在屏幕上显示为50-100像素
+        qreal targetChipPixelSize = 75.0; // 目标像素大小
+        qreal optimalScale = targetChipPixelSize / averageChipSize;
+
+        // 限制缩放范围
+        const qreal minScale = 2.0;   // 最小缩放
+        const qreal maxScale = 20.0;  // 最大缩放
+        optimalScale = qBound(minScale, optimalScale, maxScale);
+
+        // 为场景矩形添加适量边距
+        qreal marginX = sceneRect.width() * 0.1;
+        qreal marginY = sceneRect.height() * 0.1;
+        QRectF viewRect = sceneRect.adjusted(-marginX, -marginY, marginX, marginY);
+
+        // 先适应场景
+        m_view->fitInView(viewRect, Qt::KeepAspectRatio);
+
+        // 然后应用优化的缩放
+        qreal currentScale = m_view->transform().m11();
+        qreal adjustFactor = optimalScale / currentScale;
+        m_view->scale(adjustFactor, adjustFactor);
+
+        qDebug() << "场景矩形:" << sceneRect;
+        qDebug() << "视图矩形:" << viewRect;
+        qDebug() << "平均芯片大小:" << averageChipSize;
+        qDebug() << "优化缩放因子:" << optimalScale;
+        qDebug() << "最终缩放因子:" << m_view->transform().m11();
+
+        // 缩放后更新所有连线的线宽
+        if (CanvasView* canvasView = qobject_cast<CanvasView*>(m_view)) {
+            QTimer::singleShot(10, [canvasView]() {
+                QList<QGraphicsItem*> items = canvasView->scene()->items();
+                for (QGraphicsItem* item : items) {
+                    ConnectionLine* connectionLine = dynamic_cast<ConnectionLine*>(item);
+                    if (connectionLine) {
+                        connectionLine->updateLineWidth();
+                    }
+                }
+            });
+        }
+        return;
+    }
+
+    // 如果没有有效的场景矩形，则根据芯片内容调整
+    QList<CellItem*> cellItems = m_scene->getAllCellItems();
+    if (cellItems.isEmpty()) {
+        qDebug() << "没有内容可以适配";
+        return;
+    }
+
+    // 计算所有芯片的包围盒
+    QRectF contentRect;
+    for (CellItem* item : cellItems) {
+        if (item) {
+            QRectF itemRect = QRectF(item->pos(), item->size());
+            if (contentRect.isNull()) {
+                contentRect = itemRect;
+            } else {
+                contentRect = contentRect.united(itemRect);
+            }
+        }
+    }
+
+    if (!contentRect.isNull()) {
+        // 添加足够的边距以便芯片移动
+        qreal marginX = qMax(contentRect.width() * 0.3, 50.0); // 至少50像素边距
+        qreal marginY = qMax(contentRect.height() * 0.3, 50.0);
+        contentRect.adjust(-marginX, -marginY, marginX, marginY);
+
+        // 让视图适应内容
+        m_view->fitInView(contentRect, Qt::KeepAspectRatio);
+
+        qDebug() << "已根据芯片内容调整视图";
+        qDebug() << "内容矩形:" << contentRect;
+        qDebug() << "最终缩放因子:" << m_view->transform().m11();
+
+        // 缩放后更新所有连线的线宽
+        if (CanvasView* canvasView = qobject_cast<CanvasView*>(m_view)) {
+            QTimer::singleShot(10, [canvasView]() {
+                QList<QGraphicsItem*> items = canvasView->scene()->items();
+                for (QGraphicsItem* item : items) {
+                    ConnectionLine* connectionLine = dynamic_cast<ConnectionLine*>(item);
+                    if (connectionLine) {
+                        connectionLine->updateLineWidth();
+                    }
+                }
+            });
+        }
+    }
 }

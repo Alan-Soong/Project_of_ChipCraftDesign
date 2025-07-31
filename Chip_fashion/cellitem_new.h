@@ -93,6 +93,7 @@ public:
     bool isOverlapping(const CellItem* other) const;  // 检查是否与其他矩形重合
     QPainterPath getOverlapArea(const CellItem* other) const;  // 获取重合区域
     void updateOverlapState();  // 更新重合状态
+    void updateConnectedLines(); // 更新连接的连线
 
 protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
@@ -113,7 +114,7 @@ private:
 
     static constexpr qreal edgeWidth = 5.0; // 边框检测宽度
     static constexpr qreal cornerSize = 5.0; // 角点检测区域大小
-    static constexpr qreal connectorSize = 5.0; // 连接点检测区域大小
+    static constexpr qreal connectorSize = 1.0; // 连接点检测区域大小，进一步减小引脚
 
     QList<Connector> m_connectors; // 存储连接点
     QList<PinItem*> m_pinItems;    // 存储引脚图形项

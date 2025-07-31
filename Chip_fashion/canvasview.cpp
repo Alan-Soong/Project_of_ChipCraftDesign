@@ -1,7 +1,10 @@
 #include "canvasview.h"
+#include "connectionline.h"
 #include <QPainter>
 #include <QScrollBar>
 #include <QDebug>
+#include <QTransform>
+#include <QtMath>
 
 CanvasView::CanvasView(QGraphicsScene *scene, QWidget *parent)
     : QGraphicsView(scene, parent), m_scene(scene)
@@ -53,6 +56,8 @@ void CanvasView::wheelEvent(QWheelEvent *event)
         } else {
             scale(1.0 / scaleFactor, 1.0 / scaleFactor);
         }
+        // 缩放后更新所有连线的线宽
+        updateAllConnectionLineWidths();
     } else {
         // 垂直滚动
         QGraphicsView::wheelEvent(event);
@@ -92,24 +97,67 @@ void CanvasView::mouseMoveEvent(QMouseEvent *event)
 void CanvasView::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsView::drawBackground(painter, rect);
-    
-    // 绘制网格
-    const int gridSize = 20;
-    const QRectF sceneRect = this->sceneRect();
-    
-    qreal left = int(rect.left()) - (int(rect.left()) % gridSize);
-    qreal top = int(rect.top()) - (int(rect.top()) % gridSize);
-    
+
+    // 绘制固定像素间距的网格
+    // 获取当前变换的缩放因子
+    QTransform t = transform();
+    qreal currentScale = qSqrt(t.m11() * t.m11() + t.m12() * t.m12());
+
+    // 固定的屏幕像素间距
+    const qreal smallGridPixels = 20.0;  // 小网格20像素间距
+    const qreal largeGridPixels = 100.0; // 大网格100像素间距
+
+    // 转换为场景坐标系中的间距（这个会随缩放变化）
+    qreal smallGridSize = smallGridPixels / currentScale;
+    qreal largeGridSize = largeGridPixels / currentScale;
+
+    // 绘制小网格
+    qreal left = qFloor(rect.left() / smallGridSize) * smallGridSize;
+    qreal top = qFloor(rect.top() / smallGridSize) * smallGridSize;
+
     QVarLengthArray<QLineF, 100> lines;
-    
-    for (qreal x = left; x < rect.right(); x += gridSize) {
+
+    for (qreal x = left; x < rect.right(); x += smallGridSize) {
         lines.append(QLineF(x, rect.top(), x, rect.bottom()));
     }
-    
-    for (qreal y = top; y < rect.bottom(); y += gridSize) {
+
+    for (qreal y = top; y < rect.bottom(); y += smallGridSize) {
         lines.append(QLineF(rect.left(), y, rect.right(), y));
     }
-    
-    painter->setPen(QPen(QColor(200, 200, 200), 0));
+
+    // 绘制细网格线
+    painter->setPen(QPen(QColor(240, 240, 240), 0));
     painter->drawLines(lines.data(), lines.size());
+
+    // 绘制大网格线
+    QVarLengthArray<QLineF, 20> majorLines;
+
+    qreal majorLeft = qFloor(rect.left() / largeGridSize) * largeGridSize;
+    qreal majorTop = qFloor(rect.top() / largeGridSize) * largeGridSize;
+
+    for (qreal x = majorLeft; x < rect.right(); x += largeGridSize) {
+        majorLines.append(QLineF(x, rect.top(), x, rect.bottom()));
+    }
+
+    for (qreal y = majorTop; y < rect.bottom(); y += largeGridSize) {
+        majorLines.append(QLineF(rect.left(), y, rect.right(), y));
+    }
+
+    painter->setPen(QPen(QColor(200, 200, 200), 0));
+    painter->drawLines(majorLines.data(), majorLines.size());
+}
+
+void CanvasView::updateAllConnectionLineWidths()
+{
+    if (!m_scene) return;
+
+    // 遍历场景中的所有图形项
+    QList<QGraphicsItem*> items = m_scene->items();
+    for (QGraphicsItem* item : items) {
+        // 检查是否是 ConnectionLine 类型
+        ConnectionLine* connectionLine = dynamic_cast<ConnectionLine*>(item);
+        if (connectionLine) {
+            connectionLine->updateLineWidth();
+        }
+    }
 }

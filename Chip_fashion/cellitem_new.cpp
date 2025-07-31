@@ -2,12 +2,16 @@
 #include "pinitem.h"
 #include "pineditordialog.h"
 #include "canvasscene.h"
+#include "connectionline.h"
 #include <QGraphicsScene>
 #include <QStyleOptionGraphicsItem>
 #include <QGraphicsSceneMouseEvent>
 #include <QJsonArray>
 #include <QPainterPath>
 #include <QDebug>
+#include <QGraphicsView>
+#include <QTransform>
+#include <QtMath>
 
 CellItem::CellItem(QGraphicsItem *parent)
     : QGraphicsItem(parent)
@@ -40,11 +44,32 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     Q_UNUSED(option)
     Q_UNUSED(widget)
 
-    // 绘制主矩形
-    QPen pen(Qt::black, 2);
+    // 获取当前视图的缩放因子
+    qreal scaleFactor = 1.0;
+    if (scene() && !scene()->views().isEmpty()) {
+        QGraphicsView* view = scene()->views().first();
+        QTransform transform = view->transform();
+        scaleFactor = qSqrt(transform.m11() * transform.m11() + transform.m12() * transform.m12());
+    }
+
+    // 绘制主矩形，边框宽度根据缩放自适应
+    qreal borderWidth = 1.0; // 基础边框宽度
+    if (scaleFactor > 0) {
+        // 在高缩放时适当减细边框，在低缩放时适当加粗以保持可见性
+        if (scaleFactor > 10) {
+            borderWidth = 0.5;
+        } else if (scaleFactor < 3) {
+            borderWidth = 1.5;
+        }
+    }
+
+    // 限制边框宽度范围
+    borderWidth = qBound(0.5, borderWidth, 2.0);
+
+    QPen pen(Qt::black, borderWidth);
     if (isSelected()) {
         pen.setColor(Qt::red);
-        pen.setWidth(3);
+        pen.setWidth(borderWidth * 1.5); // 选中状态稍粗一点
     }
     painter->setPen(pen);
     painter->setBrush(Qt::lightGray);
@@ -76,24 +101,46 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
     // 绘制文本标签
     painter->setPen(Qt::black);
+
+    // 根据芯片大小和视图缩放自适应字体大小
+    QFont font = painter->font();
+
+    // 基于芯片尺寸计算合适的字体大小
+    qreal minDimension = qMin(m_size.width(), m_size.height());
+    qreal baseFontSize = minDimension * 0.15; // 字体大小为芯片最小尺寸的15%
+
+    // 根据缩放因子调整字体大小，确保在不同缩放下都清晰可见
+    qreal adjustedFontSize = baseFontSize;
+    if (scaleFactor > 0) {
+        // 在高缩放时减小字体避免过大，在低缩放时增大字体保证可读性
+        if (scaleFactor > 10) {
+            adjustedFontSize = baseFontSize * 0.8;
+        } else if (scaleFactor < 3) {
+            adjustedFontSize = baseFontSize * 1.5;
+        }
+    }
+
+    // 限制字体大小范围
+    adjustedFontSize = qBound(4.0, adjustedFontSize, 20.0);
+
+    font.setPointSizeF(adjustedFontSize);
+    painter->setFont(font);
+
     QRectF textRect = boundingRect();
     painter->drawText(textRect, Qt::AlignCenter, m_instanceName);
 
-    // 绘制引脚
-    painter->setBrush(Qt::blue);
-    painter->setPen(Qt::NoPen);
-    for (const auto& conn : m_connectors) {
-        QPointF pinPos = conn.calculatePos(m_size, connectorSize);
-        painter->drawEllipse(pinPos, connectorSize, connectorSize);
-    }
+    // 注意：引脚由PinItem单独绘制，不在这里重复绘制
 }
 
 void CellItem::setSize(const QSizeF& size)
 {
     prepareGeometryChange();
+    qDebug() << "setSize called: 原始尺寸:" << size;
     m_size = size;
     restrictSize(m_size);
+    qDebug() << "setSize: 限制后尺寸:" << m_size;
     updatePinPositions();
+    updateConnectedLines(); // 大小改变时也更新连线
     update();
 }
 
@@ -213,12 +260,13 @@ void CellItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             // 限制大小
             restrictSize(newSize);
             // 更新引脚位置
-            setSize(newSize); // setSize 会更新引脚位置
+            setSize(newSize); // setSize 会更新引脚位置和连线
             // 调整位置（仅对需要移动的边缘/角点）
             if (m_resizeEdge == Left || m_resizeEdge == Top || m_resizeEdge == TopLeft ||
                 m_resizeEdge == TopRight || m_resizeEdge == BottomLeft) {
                 restrictPosition(newPos);
                 setPos(newPos);  // 实际设置新位置
+                updateConnectedLines(); // 位置改变时更新连线
             }
 
             // 更新重合状态
@@ -282,11 +330,6 @@ void CellItem::addConnector(const QString& side, qreal percentage, qreal size, c
         return;
     }
 
-    if (!scene()) {
-        qWarning() << "No scene available, cannot add connector:" << id;
-        return;
-    }
-
     percentage = qBound(0.0, percentage, 100.0);
 
     // 如果是边缘引脚但x,y为0，需要重新计算位置
@@ -310,13 +353,19 @@ void CellItem::addConnector(const QString& side, qreal percentage, qreal size, c
 
     PinItem* pinItem = new PinItem(this, size, this);
     pinItem->setBrush(Qt::darkBlue);
-    pinItem->setPen(Qt::NoPen);
-    pinItem->setPos(x, y);
-    pinItem->updateConnector(id, x, y);
+    pinItem->setPen(QPen(Qt::red, 2)); // 设置明显的红色边框，便于调试
+    pinItem->setZValue(1); // 确保引脚显示在芯片之上
+
+    // 使用统一的位置计算方法
+    QPointF pinPos = connector.calculatePos(m_size, size);
+    pinItem->setPos(pinPos);
+    pinItem->updateConnector(id, pinPos.x(), pinPos.y(), side, percentage);
     m_pinItems.append(pinItem);
 
     update();
-    qDebug() << "Added PinItem to scene for connector:" << id << "at side=" << side << ", percentage=" << percentage << ", pos=(" << x << "," << y << ")";
+    qDebug() << "Added PinItem for connector:" << id << "原始坐标: (" << x << "," << y << ")"
+             << "边缘:" << side << "百分比:" << percentage << "计算后位置: (" << pinPos.x() << "," << pinPos.y() << ")"
+             << "芯片尺寸:" << m_size;
     qDebug() << "After addConnector: pinItems=" << m_pinItems.size() << ", connectors=" << m_connectors.size();
 }
 
@@ -574,12 +623,23 @@ QVariant CellItem::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     if (change == ItemPositionChange) {
         QPointF newPos = value.toPointF();
-        restrictPosition(newPos);
+
+        // 添加安全检查，避免在拖动时崩溃
+        if (scene()) {
+            QRectF sceneRect = scene()->sceneRect();
+            // 如果场景矩形无效，跳过位置限制
+            if (sceneRect.isValid() && !sceneRect.isNull()) {
+                restrictPosition(newPos);
+            }
+        }
         return newPos;
     } else if (change == ItemPositionHasChanged && !m_updatingOverlap) {
-        // 位置已经改变，更新重叠状态
+        // 位置已经改变，更新重叠状态和连线
         m_updatingOverlap = true;
         updateOverlapState();
+
+        // 更新与此芯片相关的所有连线
+        updateConnectedLines();
 
         // 通知场景中所有其他CellItem也更新重叠状态
         if (scene()) {
@@ -606,24 +666,47 @@ bool CellItem::isOnEdgeOrCorner(const QPointF &pos, ResizeEdge &edge) const
     qreal y = pos.y();
     edge = None;
 
+    // 获取当前视图的缩放因子
+    qreal scaleFactor = 1.0;
+    if (scene() && !scene()->views().isEmpty()) {
+        QGraphicsView* view = scene()->views().first();
+        QTransform transform = view->transform();
+        scaleFactor = qSqrt(transform.m11() * transform.m11() + transform.m12() * transform.m12());
+    }
+
+    // 根据缩放因子调整检测区域大小
+    // 在高缩放时检测区域更小，在低缩放时检测区域更大，保持屏幕上的视觉大小一致
+    qreal adaptiveEdgeWidth = edgeWidth;
+    qreal adaptiveCornerSize = cornerSize;
+
+    if (scaleFactor > 0) {
+        // 让检测区域在屏幕上保持大约5-8像素的固定大小
+        adaptiveEdgeWidth = 6.0 / scaleFactor;
+        adaptiveCornerSize = 8.0 / scaleFactor;
+    }
+
+    // 限制检测区域的最小和最大值
+    adaptiveEdgeWidth = qBound(2.0, adaptiveEdgeWidth, 20.0);
+    adaptiveCornerSize = qBound(3.0, adaptiveCornerSize, 25.0);
+
     // 检测角点（优先级高于边框）
-    if (qAbs(x) <= cornerSize && qAbs(y) <= cornerSize) {
+    if (qAbs(x) <= adaptiveCornerSize && qAbs(y) <= adaptiveCornerSize) {
         edge = TopLeft;
-    } else if (qAbs(x - rect.width()) <= cornerSize && qAbs(y) <= cornerSize) {
+    } else if (qAbs(x - rect.width()) <= adaptiveCornerSize && qAbs(y) <= adaptiveCornerSize) {
         edge = TopRight;
-    } else if (qAbs(x) <= cornerSize && qAbs(y - rect.height()) <= cornerSize) {
+    } else if (qAbs(x) <= adaptiveCornerSize && qAbs(y - rect.height()) <= adaptiveCornerSize) {
         edge = BottomLeft;
-    } else if (qAbs(x - rect.width()) <= cornerSize && qAbs(y - rect.height()) <= cornerSize) {
+    } else if (qAbs(x - rect.width()) <= adaptiveCornerSize && qAbs(y - rect.height()) <= adaptiveCornerSize) {
         edge = BottomRight;
     }
     // 检测边框
-    else if (x >= -edgeWidth && x <= edgeWidth) {
+    else if (x >= -adaptiveEdgeWidth && x <= adaptiveEdgeWidth) {
         edge = Left;
-    } else if (x >= rect.width() - edgeWidth && x <= rect.width() + edgeWidth) {
+    } else if (x >= rect.width() - adaptiveEdgeWidth && x <= rect.width() + adaptiveEdgeWidth) {
         edge = Right;
-    } else if (y >= -edgeWidth && y <= edgeWidth) {
+    } else if (y >= -adaptiveEdgeWidth && y <= adaptiveEdgeWidth) {
         edge = Top;
-    } else if (y >= rect.height() - edgeWidth && y <= rect.height() + edgeWidth) {
+    } else if (y >= rect.height() - adaptiveEdgeWidth && y <= rect.height() + adaptiveEdgeWidth) {
         edge = Bottom;
     }
 
@@ -638,22 +721,23 @@ void CellItem::restrictSizeAndPosition(QSizeF& size, QPointF& pos)
 
 void CellItem::restrictSize(QSizeF& size)
 {
-    // 限制最小和最大尺寸
-    const qreal minSize = 50.0;
-    const qreal maxSize = 1000.0;
+    // 对于从文件加载的芯片，不应用尺寸限制，保持原始尺寸
+    // 只做基本的有效性检查
+    if (size.width() <= 0) size.setWidth(1.0);
+    if (size.height() <= 0) size.setHeight(1.0);
 
-    size.setWidth(qBound(minSize, size.width(), maxSize));
-    size.setHeight(qBound(minSize, size.height(), maxSize));
+    // 移除最小尺寸限制，允许加载小尺寸芯片
+    // const qreal minSize = 5.0;
+    // const qreal maxSize = 1000.0;
+    // size.setWidth(qBound(minSize, size.width(), maxSize));
+    // size.setHeight(qBound(minSize, size.height(), maxSize));
 }
 
 void CellItem::restrictPosition(QPointF& pos)
 {
-    // 限制位置在场景范围内
-    if (scene()) {
-        QRectF sceneRect = scene()->sceneRect();
-        pos.setX(qBound(sceneRect.left(), pos.x(), sceneRect.right() - m_size.width()));
-        pos.setY(qBound(sceneRect.top(), pos.y(), sceneRect.bottom() - m_size.height()));
-    }
+    // 完全移除边界限制，允许芯片自由移动
+    Q_UNUSED(pos);
+    // 如果将来需要添加特定的限制，可以在这里实现
 }
 
 void CellItem::onDoubleClick()
@@ -706,9 +790,27 @@ QPointF CellItem::Connector::calculatePos(const QSizeF& cellSize, qreal pinSize)
         px = cellSize.width();
         py = cellSize.height() * percentage / 100.0;
     } else {
+        // 对于custom位置，直接使用x,y坐标
+        // 这些坐标应该已经是相对于芯片左上角的正确位置
         px = x;
         py = y;
     }
 
     return QPointF(px, py);
+}
+
+void CellItem::updateConnectedLines()
+{
+    // 更新与此芯片相关的所有连线
+    if (!scene()) return;
+
+    QList<QGraphicsItem*> sceneItems = scene()->items();
+    for (QGraphicsItem* item : sceneItems) {
+        if (ConnectionLine* line = dynamic_cast<ConnectionLine*>(item)) {
+            // 检查连线是否连接到当前芯片
+            if (line->getStartItem() == this || line->getEndItem() == this) {
+                line->updatePosition();
+            }
+        }
+    }
 }

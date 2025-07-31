@@ -10,7 +10,7 @@ TARGET = ChipDesign_Refactored
 # 定义宏
 DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000
 
-QMAKE_POST_LINK += make clean
+# QMAKE_POST_LINK += make clean
 
 # 源文件 - 按模块组织
 SOURCES += \

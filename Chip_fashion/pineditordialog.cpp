@@ -437,7 +437,7 @@ void PinEditorDialog::onPinSceneClicked(const QPointF& pos)
             m_undoStack->push(command);
         } else {
             // 如果没有撤销栈，直接添加
-            m_targetItem->addConnector(side, percentage, 10.0, id, actualX, actualY);
+            m_targetItem->addConnector(side, percentage, 1.0, id, actualX, actualY);
         }
 
         updatePinScene();

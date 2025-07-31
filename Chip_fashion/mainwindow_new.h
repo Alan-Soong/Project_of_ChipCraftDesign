@@ -54,6 +54,7 @@ private:
     void setupManagers();
     void connectSignals();
     void updateWindowTitle(const QString& fileName = QString());
+    void fitViewToContent(); // 新增：自动调整视图以适应内容
 
     // UI组件
     Ui::MainWindow *ui;

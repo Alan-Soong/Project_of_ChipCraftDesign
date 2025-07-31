@@ -38,6 +38,7 @@ public:
     void setRulerColor(const QColor &color);  // 设置标尺颜色
 
     void addCellItem(CellItem *item);
+    void addConnectionLine(ConnectionLine *line); // 添加连线的方法
     void setSelectionMode(bool enabled);
     void deleteSelectedItems();
     void undoAction();
@@ -97,7 +98,7 @@ private:
 
     // 网格相关属性
     int m_gridSize = 20;  // 默认网格大小
-    bool m_gridVisible = true;  // 网格是否可见
+    bool m_gridVisible = false;  // 网格不可见，使用CanvasView的固定像素网格
     QColor m_gridColor = Qt::lightGray;  // 网格颜色
     bool m_gridSnap = true;  // 是否启用网格对齐
     int m_majorGridSpacing = 5;  // 主网格间距（多少个网格画一条粗线）
@@ -111,9 +112,9 @@ private:
     // 标尺相关属性
     bool m_rulerVisible = true;  // 标尺是否可见
     QColor m_rulerColor = Qt::black;  // 标尺颜色
-    int m_rulerSize = 20;  // 标尺大小（像素）
-    int m_rulerTickSize = 5;  // 标尺刻度大小
-    int m_rulerTextOffset = 5;  // 标尺文字偏移
+    int m_rulerSize = 6;  // 标尺大小（像素），再调小一点
+    int m_rulerTickSize = 1;  // 标尺刻度大小，再调小一点
+    int m_rulerTextOffset = 1;  // 标尺文字偏移，再调小一点
 };
 #endif // CANVASSCENE_H
 

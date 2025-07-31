@@ -4,30 +4,25 @@
 #include <QUndoCommand>
 #include "canvasscene.h"
 #include "cellitem_new.h"
+#include "chipmanager.h"
 
 class AddRectangleCommand : public QUndoCommand
 {
 public:
-    AddRectangleCommand(CanvasScene* scene, const QPointF& pos, int& chipCounter, QUndoStack* undoStack)
-        : QUndoCommand("添加矩形"), m_scene(scene), m_pos(pos), m_chipCounter(chipCounter), m_undoStack(undoStack)
+    AddRectangleCommand(CanvasScene* scene, const QPointF& pos, ChipManager* chipManager, QUndoStack* undoStack)
+        : QUndoCommand("添加矩形"), m_scene(scene), m_pos(pos), m_chipManager(chipManager), m_undoStack(undoStack)
     {
-        m_cellItem = new CellItem();
-        m_cellItem->setPos(m_pos);
-        m_cellItem->setSize(QSizeF(150, 100));
-
-        // Increment chip counter and set names
-        m_chipCounter++;
-        int pinCount = m_cellItem->getConnectors().size() > 0 ? m_cellItem->getConnectors().size() : 1;
-        m_cellItem->setMacroName("MC" + QString::number(pinCount));
-        m_cellItem->setInstanceName("C" + QString::number(m_chipCounter));
+        // 使用ChipManager创建芯片，确保统一的自增编号
+        m_cellItem = m_chipManager->createNewChip(m_pos, QSizeF(150, 100));
+        m_chipNumber = m_chipManager->getChipCounter(); // 保存当前编号用于撤销
     }
 
     void undo() override
     {
-        if (m_cellItem && m_scene) {
+        if (m_cellItem && m_scene && m_chipManager) {
             m_scene->removeItem(m_cellItem);
-            m_chipCounter--; // Decrement counter on undo
-            qDebug() << "撤销添加矩形 at" << m_pos << ", InstanceName: C" << m_chipCounter;
+            // 注意：这里不需要修改chipManager的计数器，因为撤销不应该影响下一个芯片的编号
+            qDebug() << "撤销添加矩形 at" << m_pos << ", InstanceName:" << m_cellItem->getInstanceName();
         }
     }
 
@@ -35,7 +30,7 @@ public:
     {
         if (m_cellItem && m_scene) {
             m_scene->addCellItem(m_cellItem);
-            qDebug() << "重做添加矩形 at" << m_pos << ", InstanceName: C" << m_chipCounter;
+            qDebug() << "重做添加矩形 at" << m_pos << ", InstanceName:" << m_cellItem->getInstanceName();
         }
     }
 
@@ -43,8 +38,9 @@ private:
     CanvasScene* m_scene;
     CellItem* m_cellItem;
     QPointF m_pos;
-    int& m_chipCounter; // Reference to external counter
+    ChipManager* m_chipManager; // 使用ChipManager管理计数器
     QUndoStack* m_undoStack;
+    int m_chipNumber; // 保存芯片编号用于调试
 };
 
 class DeleteRectangleCommand : public QUndoCommand
@@ -140,7 +136,7 @@ public:
     void undo() override
     {
         if (m_cellItem) {
-            m_cellItem->addConnector(m_side, m_percentage, 10.0, m_pinId, m_x, m_y);
+            m_cellItem->addConnector(m_side, m_percentage, 1.0, m_pinId, m_x, m_y);
             qDebug() << "撤销删除引脚:" << m_pinId;
         }
     }

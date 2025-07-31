@@ -246,7 +246,7 @@ bool FileManager::loadComponentFromFile(const QString& filePath, CellItem* cellI
     // 清除现有连接器并添加新的
     // 这里需要CellItem提供清除连接器的方法
     for (const auto& conn : connectors) {
-        cellItem->addConnector(conn.side, static_cast<qreal>(conn.percentage), static_cast<qreal>(10), conn.id, static_cast<qreal>(conn.x), static_cast<qreal>(conn.y));
+        cellItem->addConnector(conn.side, static_cast<qreal>(conn.percentage), static_cast<qreal>(1), conn.id, static_cast<qreal>(conn.x), static_cast<qreal>(conn.y));
     }
 
     file.close();
@@ -261,14 +261,23 @@ bool FileManager::parseDieSize(const QString& line, CanvasScene* scene)
     bool ok;
     double left = parts[1].toDouble(&ok);
     if (!ok) return false;
-    double top = parts[2].toDouble(&ok);
+    double bottom = parts[2].toDouble(&ok);  // 左下角Y坐标
     if (!ok) return false;
     double right = parts[3].toDouble(&ok);
     if (!ok) return false;
-    double bottom = parts[4].toDouble(&ok);
+    double top = parts[4].toDouble(&ok);     // 右上角Y坐标
     if (!ok) return false;
 
-    scene->setSceneRect(left, top, right - left, bottom - top);
+    // 计算宽度和高度
+    double width = right - left;
+    double height = top - bottom;
+
+    // 设置场景矩形：Qt坐标系中Y轴向下为正，传统CAD坐标系Y轴向上为正
+    // 我们保持原始坐标系，让场景矩形从(0,0)开始，大小为width x height
+    scene->setSceneRect(0, 0, width, height);
+
+    qDebug() << "设置场景矩形: 位置(0, 0) 大小:" << width << "x" << height;
+    qDebug() << "原始边界: left=" << left << ", bottom=" << bottom << ", right=" << right << ", top=" << top;
     return true;
 }
 
@@ -292,28 +301,65 @@ bool FileManager::parseMacroDefinition(const QString& line, QTextStream& stream,
         QString pinLine = stream.readLine().trimmed();
         QStringList pinParts = pinLine.split(" ", Qt::SkipEmptyParts);
         if (pinParts.size() < 6 || pinParts[0] != "Pin") {
+            qDebug() << "引脚解析失败: 期望格式 'Pin id x y width height'，实际:" << pinLine;
+            qDebug() << "分割后的部分数量:" << pinParts.size() << "内容:" << pinParts;
             return false;
         }
 
         CellItem::Connector conn;
         conn.id = pinParts[1];
-        conn.x = static_cast<qreal>(pinParts[2].toDouble(&ok));
-        if (!ok) return false;
-        conn.y = static_cast<qreal>(pinParts[3].toDouble(&ok));
-        if (!ok) return false;
-
-        // 如果有side和percentage信息，读取它们
-        if (pinParts.size() >= 6) {
-            conn.side = pinParts[4];
-            conn.percentage = static_cast<qreal>(pinParts[5].toDouble(&ok));
-            if (!ok) conn.percentage = 0.0;
-        } else {
-            // 默认值
-            conn.side = "custom";
-            conn.percentage = 0.0;
+        qreal pinX = static_cast<qreal>(pinParts[2].toDouble(&ok));
+        if (!ok) {
+            qDebug() << "无法解析引脚X坐标:" << pinParts[2];
+            return false;
+        }
+        qreal pinY = static_cast<qreal>(pinParts[3].toDouble(&ok));
+        if (!ok) {
+            qDebug() << "无法解析引脚Y坐标:" << pinParts[3];
+            return false;
         }
 
+        // 坐标转换：从左下角坐标系转换为Qt的左上角坐标系
+        // 文件中的Y坐标是相对于左下角的，需要转换为相对于左上角的
+        conn.x = pinX;
+        conn.y = height - pinY; // Y坐标需要反转
+
+        // 根据引脚位置智能推断边缘和百分比
+        QString side;
+        qreal percentage;
+
+        // 容错值，用于判断引脚是否在边缘
+        qreal tolerance = 0.5;
+
+        if (qAbs(conn.x) <= tolerance) {
+            // 左边缘
+            side = "left";
+            percentage = (conn.y / height) * 100.0;
+        } else if (qAbs(conn.x - width) <= tolerance) {
+            // 右边缘
+            side = "right";
+            percentage = (conn.y / height) * 100.0;
+        } else if (qAbs(conn.y) <= tolerance) {
+            // 顶边缘（注意：文件中Y=0可能是底部，需要根据坐标系调整）
+            side = "top";
+            percentage = (conn.x / width) * 100.0;
+        } else if (qAbs(conn.y - height) <= tolerance) {
+            // 底边缘
+            side = "bottom";
+            percentage = (conn.x / width) * 100.0;
+        } else {
+            // 不在边缘，使用自定义位置
+            side = "custom";
+            percentage = 0.0;
+        }
+
+        conn.side = side;
+        conn.percentage = percentage;
+
         connectors.append(conn);
+        qDebug() << "成功解析引脚:" << conn.id << "原始位置(左下角):" << pinX << "," << pinY
+                 << "转换后位置(左上角):" << conn.x << "," << conn.y
+                 << "推断边缘:" << side << "百分比:" << percentage;
     }
 
     macroTypes[macroName] = qMakePair(QSizeF(width, height), connectors);
@@ -341,6 +387,20 @@ bool FileManager::parseInstance(const QString& line, CanvasScene* scene,
         return false;
     }
 
+    auto macroInfo = macroTypes[macroName];
+
+    // 需要获取场景的高度来进行Y坐标转换
+    QRectF sceneRect = scene->sceneRect();
+    double sceneHeight = sceneRect.height();
+
+    // 获取芯片高度
+    double chipHeight = macroInfo.first.height();
+
+    // 坐标转换：从左下角坐标系转换为Qt的左上角坐标系
+    // 文件中的位置是芯片左下角的位置，Qt中需要芯片左上角的位置
+    double qtPosX = posX;
+    double qtPosY = sceneHeight - posY - chipHeight; // Y坐标需要反转，并考虑芯片高度
+
     m_chipCounter++;
     QString instanceName = originalInstanceName;
     if (cellMap.contains(instanceName)) {
@@ -350,16 +410,22 @@ bool FileManager::parseInstance(const QString& line, CanvasScene* scene,
         instanceNameMapping[originalInstanceName] = originalInstanceName;
     }
 
-    auto macroInfo = macroTypes[macroName];
     CellItem* cellItem = new CellItem();
-    cellItem->setPos(posX, posY);
+    cellItem->setPos(qtPosX, qtPosY);
     cellItem->setSize(macroInfo.first);
     cellItem->setMacroName(macroName);
     cellItem->setInstanceName(instanceName);
 
+    qDebug() << "创建芯片实例:" << instanceName << "宏:" << macroName
+             << "原始位置(左下角):" << posX << "," << posY
+             << "转换后位置(左上角):" << qtPosX << "," << qtPosY;
+    qDebug() << "芯片尺寸:" << macroInfo.first << "引脚数量:" << macroInfo.second.size();
+
     // 添加连接器
     for (const auto& conn : macroInfo.second) {
-        cellItem->addConnector(conn.side, static_cast<qreal>(conn.percentage), static_cast<qreal>(10), conn.id, static_cast<qreal>(conn.x), static_cast<qreal>(conn.y));
+        qDebug() << "为芯片" << instanceName << "添加引脚:" << conn.id << "位置:" << conn.x << "," << conn.y;
+        cellItem->addConnector(conn.side, static_cast<qreal>(conn.percentage), static_cast<qreal>(1), conn.id,
+                               static_cast<qreal>(conn.x), static_cast<qreal>(conn.y));
     }
 
     scene->addCellItem(cellItem);
@@ -379,23 +445,38 @@ bool FileManager::parseNet(const QString& line, QTextStream& stream, CanvasScene
     int pinCount = parts[2].toInt();
     QList<QPair<QString, QString>> netPins;
 
+    qDebug() << "解析网络:" << netName << "引脚数量:" << pinCount;
+
     for (int i = 0; i < pinCount && !stream.atEnd(); ++i) {
         QString pinLine = stream.readLine().trimmed();
         QStringList pinParts = pinLine.split(" ", Qt::SkipEmptyParts);
-        if (pinParts.size() < 3 || pinParts[0] != "Pin") {
+        if (pinParts.size() < 2 || pinParts[0] != "Pin") {
+            qDebug() << "网络引脚解析失败:" << pinLine;
             return false;
         }
 
-        QString instanceName = pinParts[1];
+        // 解析格式：Pin C1/P1
+        QString fullPin = pinParts[1];
+        QStringList pinSpec = fullPin.split("/");
+        if (pinSpec.size() != 2) {
+            qDebug() << "引脚格式错误:" << fullPin;
+            return false;
+        }
+
+        QString instanceName = pinSpec[0];
         if (instanceNameMapping.contains(instanceName)) {
             instanceName = instanceNameMapping[instanceName];
         }
-        QString pinName = pinParts[2];
+        QString pinName = pinSpec[1];
         netPins.append(qMakePair(instanceName, pinName));
+        qDebug() << "网络" << netName << "包含引脚:" << instanceName << "/" << pinName;
     }
 
     // 创建连线
-    if (netPins.size() < 2) return true; // 网络至少需要2个引脚
+    if (netPins.size() < 2) {
+        qDebug() << "网络" << netName << "引脚数量不足，跳过连线创建";
+        return true; // 网络至少需要2个引脚
+    }
 
     for (int i = 0; i < netPins.size() - 1; ++i) {
         QString sourceInstance = netPins[i].first;
@@ -433,7 +514,7 @@ bool FileManager::parseNet(const QString& line, QTextStream& stream, CanvasScene
         if (sourceFound && targetFound) {
             sourceCell->addConnection(targetCell, sourcePin, targetPin);
             ConnectionLine* line = new ConnectionLine(sourceCell, sourceConn, targetCell, targetConn);
-            scene->addItem(line);
+            scene->addConnectionLine(line); // 使用专门的方法添加连线
         }
     }
 
@@ -463,10 +544,11 @@ bool FileManager::generateMacroDefinitions(QTextStream& stream, const QList<Cell
         stream << "Macro " << macroName << " " << size.width() << " " << size.height()
                << " " << connectors.size() << "\n";
 
-        // 写入引脚信息 - 与原始格式保持一致：Pin id x y side percentage
+        // 写入引脚信息 - 修改为标准格式：Pin id x y width height
         for (const auto& conn : connectors) {
+            // 使用固定的引脚宽度和高度（1 1）
             stream << "Pin " << conn.id << " " << conn.x << " " << conn.y
-                   << " " << conn.side << " " << conn.percentage << "\n";
+                   << " 1 1" << "\n";
         }
     }
     stream << "\n";
@@ -516,7 +598,7 @@ bool FileManager::generateNets(QTextStream& stream, const QList<CellItem*>& cell
         const auto& pins = it.value();
         stream << "Net " << netName << " " << pins.size() << "\n";
         for (const auto& pin : pins) {
-            stream << "Pin " << pin.first << " " << pin.second << "\n";
+            stream << "Pin " << pin.first << "/" << pin.second << "\n";
         }
     }
 

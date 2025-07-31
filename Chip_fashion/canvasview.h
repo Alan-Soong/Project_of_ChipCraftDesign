@@ -30,5 +30,7 @@ private:
     bool m_leftMouseButtonPressed = false;
     QPoint m_lastMousePos;
     QGraphicsScene *m_scene;
+
+    void updateAllConnectionLineWidths(); // 更新所有连线的线宽
 };
 #endif // CANVASVIEW_H

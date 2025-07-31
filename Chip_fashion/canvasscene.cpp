@@ -15,7 +15,8 @@
 CanvasScene::CanvasScene(QObject *parent)
     : QGraphicsScene(parent), undoStack(new QUndoStack(this))
 {
-    setSceneRect(-1000, -1000, 1000, 1000);
+    // 设置一个合理的默认场景矩形：从(-1000, -1000)到(1000, 1000)
+    setSceneRect(-1000, -1000, 2000, 2000);
     m_tempLine = nullptr;
     m_isGroupMoving = false;
     m_groupMoveStartPos = QPointF();
@@ -86,9 +87,12 @@ void CanvasScene::setZoomFactor(qreal factor)
         view->resetTransform();
         view->scale(m_zoomFactor, m_zoomFactor);
 
-        // 根据缩放因子调整场景大小
-        qreal newSize = 2000 * (1.0 / factor);
-        setSceneRect(-newSize/2, -newSize/2, newSize, newSize);
+        // 只在场景矩形是默认大小时才调整，避免覆盖从文件加载的尺寸
+        QRectF currentRect = sceneRect();
+        if (qAbs(currentRect.width() - 2000) < 1.0 && qAbs(currentRect.height() - 2000) < 1.0) {
+            qreal newSize = 2000 * (1.0 / factor);
+            setSceneRect(-newSize/2, -newSize/2, newSize, newSize);
+        }
     }
 
     update();
@@ -112,6 +116,13 @@ void CanvasScene::addCellItem(CellItem *item)
     addItem(item);
     item->setFlag(QGraphicsItem::ItemIsSelectable, true);
     item->setFlag(QGraphicsItem::ItemIsMovable, true);
+}
+
+void CanvasScene::addConnectionLine(ConnectionLine *line)
+{
+    if (!line) return;
+    addItem(line);
+    m_connectionLines.append(line);
 }
 
 void CanvasScene::setSelectionMode(bool enabled)
@@ -584,7 +595,7 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
     painter->setBrush(Qt::NoBrush);
 
     QFont font = painter->font();
-    font.setPointSize(8);
+    font.setPointSize(2);  // 调小字体
     painter->setFont(font);
 
     QFontMetrics fm(font);

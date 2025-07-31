@@ -149,7 +149,7 @@ void PinManager::updatePinScene(QGraphicsScene* scene, const CellItem* cellItem,
     if (m_cellPins.contains(cellItem)) {
         const QList<PinItem*>& pins = m_cellPins[cellItem];
         for (PinItem* pin : pins) {
-            PinItem* scenePin = new PinItem(chipRect, 10, nullptr);
+            PinItem* scenePin = new PinItem(chipRect, 1, nullptr);
             scenePin->updateConnector(pin->getId(), static_cast<qreal>(pin->getX()), static_cast<qreal>(pin->getY()));
             scene->addItem(scenePin);
         }

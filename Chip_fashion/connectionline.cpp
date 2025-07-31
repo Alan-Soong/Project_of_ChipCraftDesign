@@ -2,20 +2,23 @@
 #include "pinitem.h"
 #include <QPen>
 #include <QGraphicsScene>
+#include <QGraphicsView>
 #include <QDebug>
 
 ConnectionLine::ConnectionLine(CellItem* startItem, const CellItem::Connector& startConnector,
                                CellItem* endItem, const CellItem::Connector& endConnector,
                                QGraphicsItem* parent)
     : QGraphicsLineItem(parent),
-      m_startItem(startItem),
-      m_startConnector(startConnector),
-      m_endItem(endItem),
-      m_endConnector(endConnector)
+    m_startItem(startItem),
+    m_startConnector(startConnector),
+    m_endItem(endItem),
+    m_endConnector(endConnector)
 {
-    setPen(QPen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    // 使用较细的初始线宽，后续会根据缩放调整
+    setPen(QPen(Qt::black, 0.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     setFlag(QGraphicsItem::ItemIsSelectable, true);
     updatePosition();
+    updateLineWidth(); // 初始化线宽
 }
 
 void ConnectionLine::updatePosition()
@@ -28,7 +31,7 @@ void ConnectionLine::updatePosition()
     // 获取起始引脚的位置
     QPointF startPos;
     QPointF endPos;
-    
+
     // 查找起始引脚
     auto startPins = m_startItem->getPinItems();
     auto startConnectors = m_startItem->getConnectors();
@@ -39,7 +42,7 @@ void ConnectionLine::updatePosition()
             break;
         }
     }
-    
+
     // 查找结束引脚
     auto endPins = m_endItem->getPinItems();
     auto endConnectors = m_endItem->getConnectors();
@@ -50,9 +53,38 @@ void ConnectionLine::updatePosition()
             break;
         }
     }
-    
+
     // 更新连线位置
     setLine(QLineF(startPos, endPos));
-    
+
     qDebug() << "ConnectionLine updated: from" << startPos << "to" << endPos;
+}
+
+void ConnectionLine::updateLineWidth()
+{
+    // 获取当前视图的缩放因子
+    QGraphicsScene* scene = this->scene();
+    if (!scene) return;
+
+    // 从场景的视图列表中获取第一个视图（通常只有一个）
+    QList<QGraphicsView*> views = scene->views();
+    if (views.isEmpty()) return;
+
+    QGraphicsView* view = views.first();
+    QTransform t = view->transform();
+    qreal currentScale = qSqrt(t.m11() * t.m11() + t.m12() * t.m12());
+
+    // 计算自适应线宽：基础线宽除以缩放因子，但设置最小和最大值
+    qreal baseLineWidth = 0.8; // 基础线宽
+    qreal adaptiveLineWidth = baseLineWidth / currentScale;
+
+    // 限制线宽范围：最小0.2，最大3.0
+    adaptiveLineWidth = qMax(0.2, qMin(adaptiveLineWidth, 3.0));
+
+    // 更新画笔
+    QPen currentPen = pen();
+    currentPen.setWidthF(adaptiveLineWidth);
+    setPen(currentPen);
+
+    qDebug() << "ConnectionLine line width updated to:" << adaptiveLineWidth << "for scale:" << currentScale;
 }

@@ -42,15 +42,15 @@ private:
 
     // 解析方法
     bool parseDieSize(const QString& line, CanvasScene* scene);
-    bool parseMacroDefinition(const QString& line, QTextStream& stream, 
-                             QMap<QString, QPair<QSizeF, QList<CellItem::Connector>>>& macroTypes);
+    bool parseMacroDefinition(const QString& line, QTextStream& stream,
+                              QMap<QString, QPair<QSizeF, QList<CellItem::Connector>>>& macroTypes);
     bool parseInstance(const QString& line, CanvasScene* scene,
-                      const QMap<QString, QPair<QSizeF, QList<CellItem::Connector>>>& macroTypes,
-                      QMap<QString, CellItem*>& cellMap,
-                      QMap<QString, QString>& instanceNameMapping);
+                       const QMap<QString, QPair<QSizeF, QList<CellItem::Connector>>>& macroTypes,
+                       QMap<QString, CellItem*>& cellMap,
+                       QMap<QString, QString>& instanceNameMapping);
     bool parseNet(const QString& line, QTextStream& stream, CanvasScene* scene,
-                 const QMap<QString, CellItem*>& cellMap,
-                 const QMap<QString, QString>& instanceNameMapping);
+                  const QMap<QString, CellItem*>& cellMap,
+                  const QMap<QString, QString>& instanceNameMapping);
 
     // 生成方法
     bool generateMacroDefinitions(QTextStream& stream, const QList<CellItem*>& cellItems);
