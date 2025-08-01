@@ -1,0 +1,45 @@
+DieSize 0 0 70 40
+
+NumMacros 3
+Macro MC1 7 10 1
+Pin P1 2 7 1 1
+Macro MC2 14 10 2
+Pin P1 10 4 1 1
+PIn P2 4 6 1 1
+Macro MC3 17 12 3
+Pin P1 5 3 1 1
+Pin P2 3 6 1 1
+Pin P3 10 8 1 1
+
+NumInstances 8
+Inst C1 MC1 5 5
+Inst C2 MC3 13 5
+Inst C3 MC3 32 5
+Inst C4 MC2 50 5
+Inst C5 MC2 5 20
+Inst C6 MC3 20 20
+Inst C7 MC2 40 20
+Inst C8 MC1 55 20
+
+NumNets 6
+Net N1 2
+Pin C1/P1
+Pin C2/P2
+Net N2 3
+Pin C2/P1
+Pin C3/P1
+Pin C7/P2
+Net N3 2
+Pin C2/P3
+Pin C8/P1
+Net N4 3
+Pin C3/P3
+Pin C6/P2
+Pin C7/P1
+Net N5 3
+Pin C4/P2
+Pin C6/P1
+Pin C5/P1
+Net N6 2
+Pin C4/P1
+Pin C5/P2

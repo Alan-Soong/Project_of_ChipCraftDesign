@@ -47,6 +47,12 @@ private slots:
     void onFileOperationCompleted(const QString& operation, bool success);
     void onComponentSettingsSaved();
 
+    void on_actionmm_triggered();
+
+    void on_actioncm_triggered();
+
+    void on_actiondm_triggered();
+
 private:
     void setupUI();
     void loadStyleSheet();

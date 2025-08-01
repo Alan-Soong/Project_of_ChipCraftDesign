@@ -5,7 +5,6 @@
 #include "connectionline.h"
 #include "chipmanager.h"
 #include "filemanager.h"
-#include "componentsettingsdialog.h"
 #include "pineditordialog.h"
 #include "command.h"
 #include <QFileDialog>
@@ -54,9 +53,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    // 设置场景和视图，默认显示0,0到100,100的区域
+    // 设置场景和视图，默认显示-1000,0到1000,1000的区域
     m_scene = new CanvasScene(this);
-    m_scene->setSceneRect(0, 0, 100, 100);
+    m_scene->setSceneRect(-500, 0, 500, 1000);
 
     m_view = new CanvasView(m_scene);
     m_view->setParent(this);
@@ -426,3 +425,25 @@ void MainWindow::fitViewToContent()
         }
     }
 }
+
+//将背景画布网格进行调整
+void MainWindow::on_actionmm_triggered()
+{
+    m_view->setGridSize(10);
+    m_scene->set_unit("mm");
+}
+
+
+void MainWindow::on_actioncm_triggered()
+{
+    m_view->setGridSize(100);
+    m_scene->set_unit("cm");
+}
+
+
+void MainWindow::on_actiondm_triggered()
+{
+    m_view->setGridSize(1000);
+    m_scene->set_unit("dm");
+}
+

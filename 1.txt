@@ -1,0 +1,15 @@
+DieSize 0 0 100 100
+
+NumMacros 1
+Macro MC1 150 100 2
+Pin pin_1 124.667 39 1 1
+Pin pin_2 138.333 70.6667 1 1
+
+NumInstances 2
+Inst C2 MC1 -22.6645 81.779
+Inst C1 MC1 -217.578 86.5739
+
+NumNets 1
+Net N1 2
+Pin C1/pin_1
+Pin C2/pin_1
