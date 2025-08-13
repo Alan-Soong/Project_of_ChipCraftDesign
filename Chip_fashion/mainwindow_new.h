@@ -31,6 +31,7 @@ public:
 private slots:
     // 文件操作
     void newFile();
+    void newProject();  // 新建项目方法
     void openFile();
     void saveFile();
     void saveFileAs();
@@ -46,6 +47,12 @@ private slots:
     // 事件处理
     void onFileOperationCompleted(const QString& operation, bool success);
     void onComponentSettingsSaved();
+
+    void on_actionmm_triggered();
+
+    void on_actioncm_triggered();
+
+    void on_actiondm_triggered();
 
 private:
     void setupUI();

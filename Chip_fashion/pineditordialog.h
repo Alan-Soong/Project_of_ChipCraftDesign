@@ -33,6 +33,7 @@ public:
 
 protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
+    void reject() override; // 重写reject方法，用于取消时恢复原始尺寸
 
 signals:
     void pinMoved(PinItem* pin);
@@ -82,6 +83,7 @@ private:
     PinItem* m_selectedPin;
     QList<PinItem*> m_pinItems;
     QString m_currentColor;  // 当前芯片颜色
+    QSizeF m_originalSize;   // 保存原始尺寸，用于取消时恢复
 };
 
 #endif // PINEDITORDIALOG_H

@@ -43,7 +43,8 @@ private:
     // 解析方法
     bool parseDieSize(const QString& line, CanvasScene* scene);
     bool parseMacroDefinition(const QString& line, QTextStream& stream,
-                              QMap<QString, QPair<QSizeF, QList<CellItem::Connector>>>& macroTypes);
+                              QMap<QString, QPair<QSizeF, QList<CellItem::Connector>>>& macroTypes,
+                              CanvasScene* scene);
     bool parseInstance(const QString& line, CanvasScene* scene,
                        const QMap<QString, QPair<QSizeF, QList<CellItem::Connector>>>& macroTypes,
                        QMap<QString, CellItem*>& cellMap,
@@ -53,9 +54,13 @@ private:
                   const QMap<QString, QString>& instanceNameMapping);
 
     // 生成方法
-    bool generateMacroDefinitions(QTextStream& stream, const QList<CellItem*>& cellItems);
-    bool generateInstances(QTextStream& stream, const QList<CellItem*>& cellItems);
+    bool generateMacroDefinitions(QTextStream& stream, const QList<CellItem*>& cellItems, CanvasScene* scene);
+    bool generateInstances(QTextStream& stream, const QList<CellItem*>& cellItems, CanvasScene* scene);
     bool generateNets(QTextStream& stream, const QList<CellItem*>& cellItems);
+
+    // 单位转换方法
+    qreal convertFromFileUnit(qreal value, const QString& canvasUnit) const;
+    qreal convertToFileUnit(qreal value, const QString& canvasUnit) const;
 
     void setError(const QString& error);
 };

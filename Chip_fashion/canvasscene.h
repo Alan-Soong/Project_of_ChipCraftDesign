@@ -36,18 +36,22 @@ public:
     void setZoomFactor(qreal factor);  // 设置缩放因子
     void setRulerVisible(bool visible);  // 设置标尺可见性
     void setRulerColor(const QColor &color);  // 设置标尺颜色
+    void set_unit(QString to_unit);//设置单位
+    QString get_unit() const; // 获取当前单位
+
+    // 撤销系统
+    void setUndoStack(QUndoStack* undoStack) { this->undoStack = undoStack; }
+    QUndoStack* getUndoStack() const { return undoStack; }
 
     void addCellItem(CellItem *item);
     void addConnectionLine(ConnectionLine *line); // 添加连线的方法
+    void removeConnectionLine(ConnectionLine *line); // 删除连线的方法
     void setSelectionMode(bool enabled);
     void deleteSelectedItems();
     void undoAction();
     void redoAction();
     void zoomInButton();
     void zoomOutButton();
-
-    // 获取撤销栈引用
-    QUndoStack* getUndoStack() const { return undoStack; }
 
     // 连线相关方法
     void startConnection(CellItem* startItem, const QString& startPinId);
@@ -61,6 +65,7 @@ public:
     // 添加新方法声明
     void updateOverlapStates();  // 更新所有矩形的重合状态
     void addRectangle();  // 添加新矩形
+    bool isGroupMoving() const { return m_isGroupMoving; }  // 检查是否在组移动模式
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -102,6 +107,7 @@ private:
     QColor m_gridColor = Qt::lightGray;  // 网格颜色
     bool m_gridSnap = true;  // 是否启用网格对齐
     int m_majorGridSpacing = 5;  // 主网格间距（多少个网格画一条粗线）
+    QString to_unit="cm";
 
     // 缩放相关属性
     qreal m_zoomFactor = 1.0;  // 当前缩放因子
@@ -112,9 +118,8 @@ private:
     // 标尺相关属性
     bool m_rulerVisible = true;  // 标尺是否可见
     QColor m_rulerColor = Qt::black;  // 标尺颜色
-    int m_rulerSize = 6;  // 标尺大小（像素），再调小一点
-    int m_rulerTickSize = 1;  // 标尺刻度大小，再调小一点
-    int m_rulerTextOffset = 1;  // 标尺文字偏移，再调小一点
+    int m_rulerSize = 20;  // 标尺大小（像素），再调小一点
+    int m_rulerTickSize = 5;  // 标尺刻度大小，再调小一点
+    int m_rulerTextOffset = 5;  // 标尺文字偏移，再调小一点
 };
 #endif // CANVASSCENE_H
-

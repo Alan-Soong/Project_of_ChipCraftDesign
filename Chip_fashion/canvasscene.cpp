@@ -1,5 +1,6 @@
 #include "canvasscene.h"
 #include "pinitem.h"
+#include "command.h"
 #include <QPainter>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
@@ -16,7 +17,7 @@ CanvasScene::CanvasScene(QObject *parent)
     : QGraphicsScene(parent), undoStack(new QUndoStack(this))
 {
     // 设置一个合理的默认场景矩形：从(-1000, -1000)到(1000, 1000)
-    setSceneRect(-1000, -1000, 2000, 2000);
+    setSceneRect(-1000, -1000, 1000, 1000);
     m_tempLine = nullptr;
     m_isGroupMoving = false;
     m_groupMoveStartPos = QPointF();
@@ -26,10 +27,14 @@ CanvasScene::~CanvasScene()
 {
     delete undoStack;
     // 清理连线对象
-    for (ConnectionLine* line : m_connectionLines) {
-        delete line;
+    if (!m_connectionLines.isEmpty()) {
+        for (ConnectionLine* line : m_connectionLines) {
+            if (line) {
+                delete line;
+            }
+        }
+        m_connectionLines.clear();
     }
-    m_connectionLines.clear();
 }
 
 void CanvasScene::saveSnapshot()
@@ -110,6 +115,17 @@ void CanvasScene::setRulerColor(const QColor &color)
     update();
 }
 
+void CanvasScene::set_unit(const QString unit)
+{
+    to_unit = unit;
+    update();
+}
+
+QString CanvasScene::get_unit() const
+{
+    return to_unit;
+}
+
 void CanvasScene::addCellItem(CellItem *item)
 {
     if (!item) return;
@@ -125,6 +141,22 @@ void CanvasScene::addConnectionLine(ConnectionLine *line)
     m_connectionLines.append(line);
 }
 
+void CanvasScene::removeConnectionLine(ConnectionLine *line)
+{
+    if (!line) return;
+
+    // 从场景中移除图形项
+    removeItem(line);
+
+    // 从连线列表中移除
+    m_connectionLines.removeOne(line);
+
+    // 删除对象
+    delete line;
+
+    // qDebug() << "已删除连线，当前连线数量:" << m_connectionLines.size();
+}
+
 void CanvasScene::setSelectionMode(bool enabled)
 {
     m_selectionModeEnabled = enabled;
@@ -138,28 +170,66 @@ void CanvasScene::setSelectionMode(bool enabled)
 void CanvasScene::deleteSelectedItems()
 {
     QList<QGraphicsItem*> selectedItems = this->selectedItems();
-    for (QGraphicsItem* item : selectedItems) {
-        // 如果是连线，需要特殊处理
-        if (ConnectionLine* line = dynamic_cast<ConnectionLine*>(item)) {
-            m_connectionLines.removeOne(line);
-        }
+    if (selectedItems.isEmpty()) {
+        return;
+    }
 
-        // 如果是CellItem，需要删除与之相关的所有连线
+    QList<CellItem*> cellsToDelete;
+    QList<ConnectionLine*> linesToDelete;
+
+    // 分类选中的项目
+    for (QGraphicsItem* item : selectedItems) {
         if (CellItem* cellItem = dynamic_cast<CellItem*>(item)) {
+            cellsToDelete.append(cellItem);
+        } else if (ConnectionLine* line = dynamic_cast<ConnectionLine*>(item)) {
+            linesToDelete.append(line);
+        }
+    }
+
+    // 使用撤销命令删除芯片
+    if (!cellsToDelete.isEmpty() && undoStack) {
+        for (CellItem* cellItem : cellsToDelete) {
+            DeleteRectangleCommand* deleteCommand = new DeleteRectangleCommand(
+                this, cellItem, undoStack);
+            undoStack->push(deleteCommand);
+        }
+    } else {
+        // 如果没有撤销栈，直接删除（向后兼容）
+        for (CellItem* cellItem : cellsToDelete) {
             // 删除所有与此CellItem相关的连线
-            for (int i = m_connectionLines.size() - 1; i >= 0; --i) {
-                ConnectionLine* line = m_connectionLines[i];
-                if (line->getStartItem() == cellItem || line->getEndItem() == cellItem) {
-                    removeItem(line);
-                    m_connectionLines.removeAt(i);
-                    delete line;
+            if (!m_connectionLines.isEmpty()) {
+                for (int i = m_connectionLines.size() - 1; i >= 0; --i) {
+                    ConnectionLine* line = m_connectionLines[i];
+                    if (line && (line->getStartItem() == cellItem || line->getEndItem() == cellItem)) {
+                        removeItem(line);
+                        m_connectionLines.removeAt(i);
+                        delete line;
+                    }
                 }
             }
-        }
 
-        removeItem(item);
-        delete item;
+            // 删除芯片本身
+            removeItem(cellItem);
+            delete cellItem;
+        }
     }
+
+    // 使用撤销命令删除连线
+    if (!linesToDelete.isEmpty() && undoStack) {
+        for (ConnectionLine* line : linesToDelete) {
+            RemoveConnectionCommand* removeCommand = new RemoveConnectionCommand(
+                this, line);
+            undoStack->push(removeCommand);
+        }
+    } else {
+        // 如果没有撤销栈，直接删除连线（向后兼容）
+        for (ConnectionLine* line : linesToDelete) {
+            removeConnectionLine(line);
+        }
+    }
+
+    // 保留芯片删除相关的调试信息
+    qDebug() << "删除完成 - 芯片:" << cellsToDelete.size() << "个，连线:" << linesToDelete.size() << "条";
 }
 
 void CanvasScene::undoAction()
@@ -213,7 +283,7 @@ void CanvasScene::startConnection(CellItem* startItem, const QString& startPinId
 
     m_tempLine->setLine(QLineF(startPos, startPos));
 
-    qDebug() << "Started connection from" << startItem << "pin" << startPinId;
+    // qDebug() << "Started connection from" << startItem << "pin" << startPinId;
 }
 
 void CanvasScene::finishConnection(CellItem* endItem, const QString& endPinId)
@@ -281,7 +351,7 @@ void CanvasScene::finishConnection(CellItem* endItem, const QString& endPinId)
     m_connectionStartItem = nullptr;
     m_connectionStartPinId.clear();
 
-    qDebug() << "Finished connection to" << endItem << "pin" << endPinId;
+    // qDebug() << "Finished connection to" << endItem << "pin" << endPinId;
 }
 
 void CanvasScene::cancelConnection()
@@ -297,7 +367,7 @@ void CanvasScene::cancelConnection()
     m_connectionStartItem = nullptr;
     m_connectionStartPinId.clear();
 
-    qDebug() << "Connection cancelled";
+    // qDebug() << "Connection cancelled";
 }
 
 QList<ConnectionLine*> CanvasScene::getConnectionLines() const
@@ -344,8 +414,14 @@ PinItem* CanvasScene::findPinItemAt(const QPointF& scenePos, CellItem** outCellI
 
 void CanvasScene::updateAllConnectionLines()
 {
+    if (m_connectionLines.isEmpty()) {
+        return;
+    }
+
     for (ConnectionLine* line : m_connectionLines) {
-        line->updatePosition();
+        if (line) {
+            line->updatePosition();
+        }
     }
 }
 
@@ -419,7 +495,9 @@ void CanvasScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
                 m_groupMoveInitialPositions.clear();
                 for (QGraphicsItem* item : selectedItems) {
                     if (CellItem* cellItem = dynamic_cast<CellItem*>(item)) {
-                        m_groupMoveInitialPositions[cellItem] = cellItem->pos();
+                        if (cellItem) { // 添加空指针检查
+                            m_groupMoveInitialPositions[cellItem] = cellItem->pos();
+                        }
                     }
                 }
 
@@ -461,6 +539,8 @@ void CanvasScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         // 移动所有选中的CellItem
         for (auto it = m_groupMoveInitialPositions.begin(); it != m_groupMoveInitialPositions.end(); ++it) {
             CellItem* cellItem = it.key();
+            if (!cellItem) continue; // 添加空指针检查
+
             QPointF initialPos = it.value();
             QPointF newPos = initialPos + delta;
 
@@ -495,12 +575,17 @@ void CanvasScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     if (m_isGroupMoving) {
         m_isGroupMoving = false;
         m_groupMoveInitialPositions.clear();
+
+        // 确保连线位置正确更新
+        updateAllConnectionLines();
+
         event->accept();
+        return; // 直接返回，避免重复处理
     }
 
     QGraphicsScene::mouseReleaseEvent(event);
 
-    // 更新所有连线位置
+    // 更新所有连线位置（仅在非组移动时）
     updateAllConnectionLines();
 }
 
@@ -598,52 +683,102 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
     font.setPointSize(2);  // 调小字体
     painter->setFont(font);
 
-    QFontMetrics fm(font);
-
     // 获取视图的可见区域
     QRectF visibleRect;
     QList<QGraphicsView*> views = this->views();
     if (!views.isEmpty()) {
         QGraphicsView* view = views.first();
         visibleRect = view->mapToScene(view->viewport()->rect()).boundingRect();
-    } else {
-        visibleRect = rect;
-    }
 
-    // 绘制水平标尺
-    QRectF horizontalRuler(visibleRect.left(), visibleRect.top(), visibleRect.width(), m_rulerSize);
-    painter->fillRect(horizontalRuler, QColor(240, 240, 240));
-    painter->drawRect(horizontalRuler);
+        // 计算标尺宽度为视口宽度的相对比例，并考虑缩放因子
+        qreal viewportWidth = view->viewport()->width();
+        qreal scale = view->transform().m11(); // 获取水平缩放比例
 
-    // 绘制垂直标尺
-    QRectF verticalRuler(visibleRect.left(), visibleRect.top(), m_rulerSize, visibleRect.height());
-    painter->fillRect(verticalRuler, QColor(240, 240, 240));
-    painter->drawRect(verticalRuler);
+        // 基础标尺宽度为视口宽度的3%，但会根据缩放比例调整
+        qreal baseRulerWidth = viewportWidth * 0.03;
+        // 缩放时标尺宽度会相应调整
+        qreal rulerWidth = baseRulerWidth / scale;
 
-    // 绘制水平标尺刻度
-    for (int x = int(visibleRect.left()) - (int(visibleRect.left()) % m_gridSize); x < visibleRect.right(); x += m_gridSize) {
-        // 每隔m_majorGridSpacing个网格绘制一个带数字的刻度
-        if (int(x / m_gridSize) % m_majorGridSpacing == 0) {
-            painter->drawLine(x, visibleRect.top(), x, visibleRect.top() + m_rulerTickSize * 2);
-            QString text = QString::number(x);
-            painter->drawText(x - fm.horizontalAdvance(text) / 2, visibleRect.top() + m_rulerSize - m_rulerTextOffset, text);
-        } else {
-            painter->drawLine(x, visibleRect.top(), x, visibleRect.top() + m_rulerTickSize);
+        // 设置字体大小，根据缩放比例动态调整
+        QFont font = painter->font();
+        // 基础字体大小为12，根据缩放比例调整
+        qreal baseFontSize = 12.0;
+        qreal fontSize = baseFontSize / scale;
+        font.setPointSizeF(fontSize);
+        painter->setFont(font);
+
+        QFontMetrics fm(font);
+
+        // 绘制水平标尺
+        QRectF horizontalRuler(visibleRect.left(), visibleRect.top(), visibleRect.width(), rulerWidth);
+        painter->fillRect(horizontalRuler, QColor(240, 240, 240));
+        painter->drawRect(horizontalRuler);
+
+        // 绘制垂直标尺
+        QRectF verticalRuler(visibleRect.left(), visibleRect.top(), rulerWidth, visibleRect.height());
+        painter->fillRect(verticalRuler, QColor(240, 240, 240));
+        painter->drawRect(verticalRuler);
+
+        // 计算合适的刻度间隔，使屏幕内显示固定数量的刻度
+        const int targetTickCount = 80; // 目标刻度数量
+        qreal visibleWidth = visibleRect.width();
+        qreal visibleHeight = visibleRect.height();
+
+        // 计算基础间隔
+        qreal baseInterval = qMax(visibleWidth, visibleHeight) / targetTickCount;
+
+        // 将间隔调整为网格大小的整数倍
+        qreal gridMultiplier = qCeil(baseInterval / m_gridSize);
+        qreal interval = m_gridSize * gridMultiplier;
+
+        // 主刻度间隔为普通间隔的5倍
+        qreal majorInterval = interval * 5;
+
+        // 获取网格单位（假设m_gridSize为10表示1mm）
+        qreal gridUnit = m_gridSize / 10.0; // 1个网格单位对应的实际距离（mm）
+
+        // 单位转换函数
+        auto convertUnit = [](qreal value, const QString& fromUnit, const QString& toUnit) -> qreal {
+            if (fromUnit == "mm" && toUnit == "cm") {
+                return value / 10.0;
+            } else if (fromUnit == "mm" && toUnit == "dm") {
+                return value / 100.0;
+            }
+            return value;
+        };
+
+        // 绘制水平标尺刻度
+        for (qreal x = qFloor(visibleRect.left() / interval) * interval; x < visibleRect.right(); x += interval) {
+            // 每隔majorInterval绘制一个带数字的刻度
+            if (qAbs(fmod(x, majorInterval)) < 0.1) {
+                painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.3));
+                // 将坐标转换为实际距离（以毫米为基准）
+                qreal distance = x * gridUnit; // 距离（mm）
+                // 根据当前单位转换距离
+                qreal convertedDistance = convertUnit(distance, "mm", to_unit);
+                QString text = QString::number(convertedDistance, 'f', 1) + to_unit;
+                painter->drawText(x - fm.horizontalAdvance(text) / 2, visibleRect.top() + rulerWidth * 0.8, text);
+            } else {
+                painter->drawLine(QPoint(x, visibleRect.top()), QPoint(x, visibleRect.top() + rulerWidth * 0.2));
+            }
         }
-    }
 
-    // 绘制垂直标尺刻度
-    for (int y = int(visibleRect.top()) - (int(visibleRect.top()) % m_gridSize); y < visibleRect.bottom(); y += m_gridSize) {
-        // 每隔m_majorGridSpacing个网格绘制一个带数字的刻度
-        if (int(y / m_gridSize) % m_majorGridSpacing == 0) {
-            painter->drawLine(visibleRect.left(), y, visibleRect.left() + m_rulerTickSize * 2, y);
-            QString text = QString::number(y);
-            painter->drawText(visibleRect.left() + m_rulerTextOffset, y + fm.height() / 2, text);
-        } else {
-            painter->drawLine(visibleRect.left(), y, visibleRect.left() + m_rulerTickSize, y);
+        // 绘制垂直标尺刻度
+        for (qreal y = qFloor(visibleRect.top() / interval) * interval; y < visibleRect.bottom(); y += interval) {
+            // 每隔majorInterval绘制一个带数字的刻度
+            if (qAbs(fmod(y, majorInterval)) < 0.1) {
+                painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.3, y));
+                // 将坐标转换为实际距离（以毫米为基准）
+                qreal distance = y * gridUnit; // 距离（mm）
+                // 根据当前单位转换距离
+                qreal convertedDistance = convertUnit(distance, "mm", to_unit);
+                QString text = QString::number(convertedDistance, 'f', 1) + to_unit;
+                painter->drawText(visibleRect.left() + rulerWidth * 0.2, y + fm.height() / 2, text);
+            } else {
+                painter->drawLine(QPoint(visibleRect.left(), y), QPoint(visibleRect.left() + rulerWidth * 0.2, y));
+            }
         }
     }
 
     painter->restore();
 }
-

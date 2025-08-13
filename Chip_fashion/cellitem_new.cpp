@@ -3,6 +3,7 @@
 #include "pineditordialog.h"
 #include "canvasscene.h"
 #include "connectionline.h"
+#include "command.h"
 #include <QGraphicsScene>
 #include <QStyleOptionGraphicsItem>
 #include <QGraphicsSceneMouseEvent>
@@ -18,9 +19,12 @@ CellItem::CellItem(QGraphicsItem *parent)
     , m_size(150, 100)
     , m_resizeEdge(None)
     , m_isDragging(false)
-    , m_macroName("DefaultMacro")
+    , m_macroName("MC0")  // 默认无引脚，对应MC0
     , m_instanceName("DefaultInstance")
     , m_updatingOverlap(false)
+    , m_lastRecordedPosition()  // 初始化为空点
+    , m_positionUpdateInProgress(false)
+    , m_dragStartPosition()  // 初始化为空点
 {
     setFlag(QGraphicsItem::ItemIsMovable);
     setFlag(QGraphicsItem::ItemIsSelectable);
@@ -105,29 +109,113 @@ void CellItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     // 根据芯片大小和视图缩放自适应字体大小
     QFont font = painter->font();
 
-    // 基于芯片尺寸计算合适的字体大小
+    // 创建显示文本：格式为 CX|MCY
+    QString displayText = m_instanceName + "|" + m_macroName;
+
+    // 计算芯片的可用显示区域（留出边距）
+    qreal margin = 4.0; // 边距
+    qreal availableWidth = m_size.width() - 2 * margin;
+    qreal availableHeight = m_size.height() - 2 * margin;
+
+    // 确保最小可用空间
+    availableWidth = qMax(availableWidth, 20.0);
+    availableHeight = qMax(availableHeight, 10.0);
+
+    // 基于可用空间计算初始字体大小
+    qreal widthBasedSize = availableWidth / displayText.length() * 1.2; // 基于宽度
+    qreal heightBasedSize = availableHeight * 0.6; // 基于高度，留出上下空间
+
+    // 取较小值确保文本能完全显示
+    qreal baseFontSize = qMin(widthBasedSize, heightBasedSize);
+
+    // 根据芯片大小类别进行调整
     qreal minDimension = qMin(m_size.width(), m_size.height());
-    qreal baseFontSize = minDimension * 0.15; // 字体大小为芯片最小尺寸的15%
+    if (minDimension < 50) {
+        // 超小芯片：确保最小可读性
+        baseFontSize = qMax(baseFontSize, 6.0);
+    } else if (minDimension < 100) {
+        // 小芯片：适中字体
+        baseFontSize = qMax(baseFontSize, 8.0);
+    } else if (minDimension > 300) {
+        // 大芯片：避免字体过大
+        baseFontSize = qMin(baseFontSize, minDimension * 0.15);
+    }
 
     // 根据缩放因子调整字体大小，确保在不同缩放下都清晰可见
     qreal adjustedFontSize = baseFontSize;
     if (scaleFactor > 0) {
-        // 在高缩放时减小字体避免过大，在低缩放时增大字体保证可读性
-        if (scaleFactor > 10) {
-            adjustedFontSize = baseFontSize * 0.8;
-        } else if (scaleFactor < 3) {
-            adjustedFontSize = baseFontSize * 1.5;
+        if (scaleFactor > 15) {
+            // 高缩放：减小字体避免过大
+            adjustedFontSize = baseFontSize * 0.7;
+        } else if (scaleFactor > 8) {
+            adjustedFontSize = baseFontSize * 0.85;
+        } else if (scaleFactor < 2) {
+            // 低缩放：增大字体保证可读性
+            adjustedFontSize = baseFontSize * 1.8;
+        } else if (scaleFactor < 4) {
+            adjustedFontSize = baseFontSize * 1.4;
         }
     }
 
-    // 限制字体大小范围
-    adjustedFontSize = qBound(4.0, adjustedFontSize, 20.0);
+    // 设置合理的字体大小范围
+    adjustedFontSize = qBound(5.0, adjustedFontSize, 24.0);
 
     font.setPointSizeF(adjustedFontSize);
     painter->setFont(font);
 
+    // 计算文本实际需要的空间，并支持多行显示
+    QFontMetrics fm(font);
+    QRect textBounds = fm.boundingRect(displayText);
+
+    QString finalDisplayText = displayText;
+    bool useMultiLine = false;
+
+    // 如果文本太大，尝试多行显示或缩写
+    if (textBounds.width() > availableWidth || textBounds.height() > availableHeight) {
+        // 首先尝试多行显示（在 | 处换行）
+        if (displayText.contains("|") && m_size.height() > 30) {
+            QStringList parts = displayText.split("|");
+            if (parts.size() == 2) {
+                QString line1 = parts[0];
+                QString line2 = parts[1];
+
+                // 检查两行是否都能放下
+                QRect line1Bounds = fm.boundingRect(line1);
+                QRect line2Bounds = fm.boundingRect(line2);
+                qreal lineHeight = fm.height();
+                qreal totalHeight = lineHeight * 2 + 2; // 加点行间距
+
+                if (line1Bounds.width() <= availableWidth &&
+                    line2Bounds.width() <= availableWidth &&
+                    totalHeight <= availableHeight) {
+                    finalDisplayText = line1 + "\n" + line2;
+                    useMultiLine = true;
+                }
+            }
+        }
+
+        // 如果多行还是不行，进一步缩小字体
+        if (!useMultiLine) {
+            qreal scaleFactorWidth = availableWidth / textBounds.width();
+            qreal scaleFactorHeight = availableHeight / textBounds.height();
+            qreal scaleFactor = qMin(scaleFactorWidth, scaleFactorHeight) * 0.9; // 留点余量
+
+            adjustedFontSize *= scaleFactor;
+            adjustedFontSize = qMax(adjustedFontSize, 4.0); // 保证最小可读性
+
+            font.setPointSizeF(adjustedFontSize);
+            painter->setFont(font);
+        }
+    }
+
     QRectF textRect = boundingRect();
-    painter->drawText(textRect, Qt::AlignCenter, m_instanceName);
+
+    // 根据是否多行使用不同的绘制方式
+    if (useMultiLine) {
+        painter->drawText(textRect, Qt::AlignCenter, finalDisplayText);
+    } else {
+        painter->drawText(textRect, Qt::AlignCenter, finalDisplayText);
+    }
 
     // 注意：引脚由PinItem单独绘制，不在这里重复绘制
 }
@@ -153,6 +241,9 @@ void CellItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
     qDebug() << "图元：鼠标按下位置:" << event->scenePos();
 
     if (event->button() == Qt::LeftButton) {
+        // 记录拖动开始时的位置，用于撤销系统
+        m_dragStartPosition = pos();
+
         // 先选中当前项
         if (!isSelected()) {
             setSelected(true);
@@ -310,6 +401,26 @@ void CellItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
         return;
     }
     qDebug() << "图元：鼠标释放位置:" << event->scenePos();
+
+    // 检查是否进行了位置移动，如果是则创建撤销命令
+    if (event->button() == Qt::LeftButton && m_resizeEdge == None) {
+        // 检查是否在组移动模式中，如果是则不创建单个撤销命令
+        CanvasScene* canvasScene = dynamic_cast<CanvasScene*>(scene());
+
+        if (!canvasScene || !canvasScene->isGroupMoving()) {
+            QPointF currentPos = pos();
+            // 只有当位置真正发生变化时才创建撤销命令（距离大于1像素）
+            if (QLineF(m_dragStartPosition, currentPos).length() > 1.0) {
+                if (canvasScene && canvasScene->getUndoStack()) {
+                    MoveCellCommand* moveCommand = new MoveCellCommand(this, m_dragStartPosition, currentPos);
+                    canvasScene->getUndoStack()->push(moveCommand);
+                    m_lastRecordedPosition = currentPos;
+                    qDebug() << "创建移动撤销命令: 从" << m_dragStartPosition << "到" << currentPos;
+                }
+            }
+        }
+    }
+
     m_resizeEdge = None;
     m_dragOffset = QPointF(0, 0);
     setCursor(QCursor(Qt::OpenHandCursor));
@@ -351,22 +462,23 @@ void CellItem::addConnector(const QString& side, qreal percentage, qreal size, c
     Connector connector(side, percentage, id, x, y);
     m_connectors.append(connector);
 
-    PinItem* pinItem = new PinItem(this, size, this);
-    pinItem->setBrush(Qt::darkBlue);
-    pinItem->setPen(QPen(Qt::red, 2)); // 设置明显的红色边框，便于调试
+    PinItem* pinItem = new PinItem(nullptr, size, this);  // 不设置parentRect，使用CellItem作为parent
     pinItem->setZValue(1); // 确保引脚显示在芯片之上
 
-    // 使用统一的位置计算方法
+    // 使用绝对坐标：直接使用计算出的引脚位置
     QPointF pinPos = connector.calculatePos(m_size, size);
-    pinItem->setPos(pinPos);
+    pinItem->setPos(pinPos);  // 这是相对于CellItem的本地坐标
     pinItem->updateConnector(id, pinPos.x(), pinPos.y(), side, percentage);
     m_pinItems.append(pinItem);
 
     update();
     qDebug() << "Added PinItem for connector:" << id << "原始坐标: (" << x << "," << y << ")"
-             << "边缘:" << side << "百分比:" << percentage << "计算后位置: (" << pinPos.x() << "," << pinPos.y() << ")"
+             << "边缘:" << side << "百分比:" << percentage << "本地位置: (" << pinPos.x() << "," << pinPos.y() << ")"
              << "芯片尺寸:" << m_size;
     qDebug() << "After addConnector: pinItems=" << m_pinItems.size() << ", connectors=" << m_connectors.size();
+
+    // 更新宏名称
+    updateMacroName();
 }
 
 bool CellItem::removeConnector(const QString& id) {
@@ -424,6 +536,10 @@ bool CellItem::removeConnector(int index) {
     update();
     qDebug() << "Removed connector at index=" << index << ", remaining connectors=" << m_connectors.size()
              << ", remaining pinItems=" << m_pinItems.size();
+
+    // 更新宏名称
+    updateMacroName();
+
     return true;
 }
 
@@ -488,8 +604,31 @@ void CellItem::addConnection(CellItem* targetCell, const QString& sourcePin, con
 
     // 添加连接
     m_connections.append(qMakePair(targetCell, qMakePair(sourcePin, targetPin)));
-    qDebug() << "Added connection from" << sourcePin << "to" << targetPin;
+    // qDebug() << "Added connection from" << sourcePin << "to" << targetPin;
     update();
+}
+
+void CellItem::removeConnection(CellItem* targetCell, const QString& sourcePin, const QString& targetPin)
+{
+    if (!targetCell) {
+        qWarning() << "Cannot remove connection: target cell is null";
+        return;
+    }
+
+    // 查找并删除连接
+    for (int i = 0; i < m_connections.size(); ++i) {
+        const auto& connection = m_connections[i];
+        if (connection.first == targetCell &&
+            connection.second.first == sourcePin &&
+            connection.second.second == targetPin) {
+            m_connections.removeAt(i);
+            qDebug() << "Removed connection from" << sourcePin << "to" << targetPin;
+            update();
+            return;
+        }
+    }
+
+    qWarning() << "Connection not found:" << sourcePin << "to" << targetPin;
 }
 
 QPainterPath CellItem::getShape() const
@@ -762,9 +901,17 @@ void CellItem::updatePinPositions()
 {
     for (int i = 0; i < m_connectors.size() && i < m_pinItems.size(); ++i) {
         QPointF pos = m_connectors[i].calculatePos(m_size, connectorSize);
-        m_connectors[i].x = pos.x();
-        m_connectors[i].y = pos.y();
-        m_pinItems[i]->updateConnector(m_connectors[i].id, static_cast<qreal>(pos.x()), static_cast<qreal>(pos.y()));
+
+        // 只有非custom类型的引脚才更新存储的x,y坐标
+        // custom类型的引脚保持原始坐标不变
+        if (m_connectors[i].side != "custom") {
+            m_connectors[i].x = pos.x();
+            m_connectors[i].y = pos.y();
+        }
+
+        // 更新引脚位置显示
+        m_pinItems[i]->setPos(pos);
+        m_pinItems[i]->updateConnector(m_connectors[i].id, pos.x(), pos.y(), m_connectors[i].side, m_connectors[i].percentage);
     }
 }
 
@@ -807,10 +954,24 @@ void CellItem::updateConnectedLines()
     QList<QGraphicsItem*> sceneItems = scene()->items();
     for (QGraphicsItem* item : sceneItems) {
         if (ConnectionLine* line = dynamic_cast<ConnectionLine*>(item)) {
-            // 检查连线是否连接到当前芯片
-            if (line->getStartItem() == this || line->getEndItem() == this) {
+            // 检查连线是否有效且连接到当前芯片
+            if (line && (line->getStartItem() == this || line->getEndItem() == this)) {
                 line->updatePosition();
             }
         }
+    }
+}
+
+void CellItem::updateMacroName()
+{
+    // 根据引脚数量生成宏名称：MC + 引脚数量
+    int pinCount = m_connectors.size();
+    // 引脚数量可以为0，对应MC0
+
+    QString newMacroName = "MC" + QString::number(pinCount);
+    if (m_macroName != newMacroName) {
+        m_macroName = newMacroName;
+        update(); // 重新绘制以显示新的名称
+        qDebug() << "更新宏名称为:" << m_macroName << "基于引脚数量:" << pinCount;
     }
 }

@@ -26,6 +26,7 @@ PinEditorDialog::PinEditorDialog(CellItem* item, QUndoStack* undoStack, QWidget 
     , m_chipRect(nullptr)
     , m_addingPin(false)
     , m_selectedPin(nullptr)
+    , m_originalSize(item ? item->size() : QSizeF(100, 100))  // 保存原始尺寸
 {
     ui->setupUi(this);
 
@@ -81,6 +82,12 @@ void PinEditorDialog::loadChipProperties()
 {
     if (!m_targetItem) return;
 
+    // 临时断开信号连接，避免在加载属性时触发尺寸变化
+    disconnect(ui->widthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+               this, &PinEditorDialog::onSizeChanged);
+    disconnect(ui->heightSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+               this, &PinEditorDialog::onSizeChanged);
+
     // 加载芯片属性到UI
     ui->nameEdit->setText(m_targetItem->getMacroName());
     ui->instanceEdit->setText(m_targetItem->getInstanceName());
@@ -89,6 +96,12 @@ void PinEditorDialog::loadChipProperties()
     QSizeF size = m_targetItem->size();
     ui->widthSpin->setValue(static_cast<int>(size.width()));
     ui->heightSpin->setValue(static_cast<int>(size.height()));
+
+    // 重新连接信号
+    connect(ui->widthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &PinEditorDialog::onSizeChanged);
+    connect(ui->heightSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &PinEditorDialog::onSizeChanged);
 
     // 设置默认颜色
     m_currentColor = "浅灰色";
@@ -153,7 +166,7 @@ void PinEditorDialog::updatePinScene()
     qreal displayWidth = qMax(cellSize.width(), 300.0);
     qreal displayHeight = qMax(cellSize.height(), 200.0);
 
-    // 更新chipRect尺寸和颜色
+    // 更新chipRect尺寸和颜色 - 这里是关键！
     m_chipRect->setRect(0, 0, displayWidth, displayHeight);
     updateChipColor();
 
@@ -175,49 +188,55 @@ void PinEditorDialog::updatePinScene()
         textItem->setDefaultTextColor(Qt::black);
     }
 
-    // 添加引脚显示 - 按比例缩放引脚位置
-    qreal scaleX = displayWidth / cellSize.width();
-    qreal scaleY = displayHeight / cellSize.height();
-
+    // 添加引脚显示 - 使用绝对场景坐标
     for (const auto& conn : connectors) {
-        PinItem* pinItem = new PinItem(m_chipRect, 15);  // 增大引脚大小到15
+        PinItem* pinItem = new PinItem(nullptr, 15);  // 不设置任何parent，使用绝对场景坐标
 
-        // 计算显示位置
+        // 计算显示位置 - 芯片矩形起始位置 + 引脚在芯片内的相对位置
         qreal displayX, displayY;
+        QRectF currentChipRect = m_chipRect->rect();
+        qreal chipLeft = currentChipRect.left();  // 芯片左边界（通常是0）
+        qreal chipTop = currentChipRect.top();    // 芯片上边界（通常是0）
+
         if (conn.side == "custom") {
-            // 自定义位置：直接按比例缩放
-            displayX = conn.x * scaleX;
-            displayY = conn.y * scaleY;
+            // 自定义位置：按比例转换到显示坐标
+            displayX = chipLeft + (conn.x * currentChipRect.width() / cellSize.width());
+            displayY = chipTop + (conn.y * currentChipRect.height() / cellSize.height());
         } else {
-            // 边缘位置：重新计算显示位置
+            // 边缘位置：直接计算绝对位置
             if (conn.side == "top") {
-                displayX = displayWidth * conn.percentage / 100.0;
-                displayY = 0;
+                displayX = chipLeft + (currentChipRect.width() * conn.percentage / 100.0);
+                displayY = chipTop;
             } else if (conn.side == "bottom") {
-                displayX = displayWidth * conn.percentage / 100.0;
-                displayY = displayHeight;
+                displayX = chipLeft + (currentChipRect.width() * conn.percentage / 100.0);
+                displayY = chipTop + currentChipRect.height();
             } else if (conn.side == "left") {
-                displayX = 0;
-                displayY = displayHeight * conn.percentage / 100.0;
+                displayX = chipLeft;
+                displayY = chipTop + (currentChipRect.height() * conn.percentage / 100.0);
             } else if (conn.side == "right") {
-                displayX = displayWidth;
-                displayY = displayHeight * conn.percentage / 100.0;
+                displayX = chipLeft + currentChipRect.width();
+                displayY = chipTop + (currentChipRect.height() * conn.percentage / 100.0);
             } else {
                 // 备用方案
-                displayX = conn.x * scaleX;
-                displayY = conn.y * scaleY;
+                displayX = chipLeft + (conn.x * currentChipRect.width() / cellSize.width());
+                displayY = chipTop + (conn.y * currentChipRect.height() / cellSize.height());
             }
         }
 
-        // 设置引脚属性和位置
+        // 设置引脚位置（绝对场景坐标）
+        pinItem->setPos(displayX, displayY);
         pinItem->updateConnector(conn.id, displayX, displayY, conn.side, conn.percentage);
-        pinItem->setBrush(Qt::darkBlue);
-        pinItem->setPen(Qt::NoPen);
 
+        // 添加到场景中
         m_pinScene->addItem(pinItem);
         m_pinItems.append(pinItem);
 
-        qDebug() << "添加引脚到预览:" << conn.id << "位置:" << displayX << "," << displayY;
+        qDebug() << "添加引脚到预览:" << conn.id
+                 << "存储坐标:(" << conn.x << "," << conn.y << ")"
+                 << "芯片位置:(" << chipLeft << "," << chipTop << ")"
+                 << "芯片大小:(" << currentChipRect.width() << "x" << currentChipRect.height() << ")"
+                 << "绝对显示位置:(" << displayX << "," << displayY << ")"
+                 << "边:" << conn.side;
     }
 
     // 设置场景矩形，并添加一些边距
@@ -368,6 +387,9 @@ void PinEditorDialog::onPinSceneClicked(const QPointF& pos)
     qreal percentage = 0.0;
     qreal edgeThreshold = 20.0;  // 增加边缘检测阈值
 
+    qDebug() << "点击位置(场景坐标):" << x << "," << y;
+    qDebug() << "芯片矩形大小:" << chipRect.width() << "x" << chipRect.height();
+
     // 确保点击在芯片区域内
     if (x < -edgeThreshold || x > chipRect.width() + edgeThreshold ||
         y < -edgeThreshold || y > chipRect.height() + edgeThreshold) {
@@ -402,6 +424,7 @@ void PinEditorDialog::onPinSceneClicked(const QPointF& pos)
         // 内部区域
         side = "custom";
         percentage = 0.0;
+        qDebug() << "检测到内部区域，自由位置:" << x << "," << y;
     }
 
     if (!side.isEmpty()) {
@@ -420,11 +443,18 @@ void PinEditorDialog::onPinSceneClicked(const QPointF& pos)
         qreal actualX, actualY;
 
         if (side == "custom") {
-            // 自定义位置：需要按比例转换回原始坐标
-            qreal displayWidth = qMax(cellSize.width(), 300.0);
-            qreal displayHeight = qMax(cellSize.height(), 200.0);
-            actualX = x * cellSize.width() / displayWidth;
-            actualY = y * cellSize.height() / displayHeight;
+            // 自定义位置：使用简单直接的转换
+            // 获取当前芯片矩形的实际显示尺寸
+            QRectF currentChipRect = m_chipRect->rect();
+
+            actualX = x * cellSize.width() / currentChipRect.width();
+            actualY = y * cellSize.height() / currentChipRect.height();
+
+            qDebug() << "自定义引脚位置计算:";
+            qDebug() << "  点击位置:" << x << "," << y;
+            qDebug() << "  芯片实际大小:" << cellSize.width() << "x" << cellSize.height();
+            qDebug() << "  当前显示大小:" << currentChipRect.width() << "x" << currentChipRect.height();
+            qDebug() << "  转换后实际坐标:" << actualX << "," << actualY;
         } else {
             // 边缘位置：让addConnector内部计算
             actualX = 0;
@@ -477,8 +507,8 @@ void PinEditorDialog::onPinSelectionChanged()
         // 清除其他引脚的高亮
         for (PinItem* pinItem : m_pinItems) {
             if (pinItem != m_selectedPin) {
-                pinItem->setPen(Qt::NoPen);
-                pinItem->setBrush(Qt::darkBlue);
+                pinItem->setPen(QPen(Qt::darkBlue, 1));
+                pinItem->setBrush(Qt::blue);
             }
         }
 
@@ -489,8 +519,8 @@ void PinEditorDialog::onPinSelectionChanged()
         qDebug() << "没有选中任何列表项";
         // 清除所有引脚的高亮
         for (PinItem* pinItem : m_pinItems) {
-            pinItem->setPen(Qt::NoPen);
-            pinItem->setBrush(Qt::darkBlue);
+            pinItem->setPen(QPen(Qt::darkBlue, 1));
+            pinItem->setBrush(Qt::blue);
         }
     }
 
@@ -614,4 +644,15 @@ bool PinEditorDialog::pinIdExists(const QString& id)
         }
     }
     return false;
+}
+
+void PinEditorDialog::reject()
+{
+    // 恢复原始尺寸
+    if (m_targetItem) {
+        m_targetItem->setSize(m_originalSize);
+    }
+
+    // 调用基类的reject方法
+    QDialog::reject();
 }

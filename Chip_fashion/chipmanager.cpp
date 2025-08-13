@@ -20,8 +20,11 @@ CellItem* ChipManager::createNewChip(const QPointF& position, const QSizeF& size
     chip->setPos(position);
     chip->setSize(size);
 
-    // 根据引脚数量设置宏名称（默认为1个引脚）
-    int pinCount = chip->getConnectors().size() > 0 ? chip->getConnectors().size() : 1;
+    // 新芯片默认没有引脚，宏名称为MC0
+    // 不添加默认引脚，让用户通过对话框手动添加
+
+    // 根据引脚数量设置宏名称（0个引脚对应MC0）
+    int pinCount = chip->getConnectors().size(); // 应该是0
     chip->setMacroName(generateMacroName(pinCount));
 
     // 根据芯片计数器设置实例名称
@@ -29,8 +32,9 @@ CellItem* ChipManager::createNewChip(const QPointF& position, const QSizeF& size
 
     registerChip(chip);
 
-    qDebug() << "Created new chip with MacroName:" << chip->getMacroName() 
-             << ", InstanceName:" << chip->getInstanceName();
+    qDebug() << "Created new chip with MacroName:" << chip->getMacroName()
+             << ", InstanceName:" << chip->getInstanceName()
+             << ", PinCount:" << pinCount;
 
     return chip;
 }
@@ -41,7 +45,7 @@ void ChipManager::updateChipNames(CellItem* cellItem)
 
     // 更新宏名称基于引脚数量
     int pinCount = cellItem->getConnectors().size();
-    if (pinCount == 0) pinCount = 1; // 至少为1
+    // 引脚数量可以为0，对应MC0
     cellItem->setMacroName(generateMacroName(pinCount));
 
     qDebug() << "Updated chip names: MacroName=" << cellItem->getMacroName()
@@ -62,14 +66,14 @@ QString ChipManager::generateMacroName(int pinCount)
 bool ChipManager::validateChipPlacement(CellItem* chip) const
 {
     if (!chip) return false;
-    
+
     // 检查芯片是否与其他芯片重叠
     for (const CellItem* existingChip : m_managedChips) {
         if (existingChip != chip && chip->isOverlapping(existingChip)) {
             return false;
         }
     }
-    
+
     return true;
 }
 

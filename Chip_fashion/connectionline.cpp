@@ -4,6 +4,7 @@
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QDebug>
+#include <QVariant>
 
 ConnectionLine::ConnectionLine(CellItem* startItem, const CellItem::Connector& startConnector,
                                CellItem* endItem, const CellItem::Connector& endConnector,
@@ -57,7 +58,7 @@ void ConnectionLine::updatePosition()
     // 更新连线位置
     setLine(QLineF(startPos, endPos));
 
-    qDebug() << "ConnectionLine updated: from" << startPos << "to" << endPos;
+    // qDebug() << "ConnectionLine updated: from" << startPos << "to" << endPos;
 }
 
 void ConnectionLine::updateLineWidth()
@@ -86,5 +87,27 @@ void ConnectionLine::updateLineWidth()
     currentPen.setWidthF(adaptiveLineWidth);
     setPen(currentPen);
 
-    qDebug() << "ConnectionLine line width updated to:" << adaptiveLineWidth << "for scale:" << currentScale;
+    // qDebug() << "ConnectionLine line width updated to:" << adaptiveLineWidth << "for scale:" << currentScale;
+}
+
+QVariant ConnectionLine::itemChange(GraphicsItemChange change, const QVariant &value)
+{
+    if (change == ItemSelectedChange) {
+        bool selected = value.toBool();
+        QPen currentPen = pen();
+
+        if (selected) {
+            // 选中时使用红色高亮
+            currentPen.setColor(Qt::red);
+            currentPen.setWidthF(currentPen.widthF() + 1.0); // 稍微加粗
+        } else {
+            // 未选中时使用默认黑色
+            currentPen.setColor(Qt::black);
+            updateLineWidth(); // 恢复正常线宽
+        }
+
+        setPen(currentPen);
+    }
+
+    return QGraphicsLineItem::itemChange(change, value);
 }

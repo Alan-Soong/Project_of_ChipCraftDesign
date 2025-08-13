@@ -94,57 +94,88 @@ void CanvasView::mouseMoveEvent(QMouseEvent *event)
     QGraphicsView::mouseMoveEvent(event);
 }
 
+void CanvasView::setGridSize(int size)
+{
+    gridSize = size;
+    update();
+}
+
+// void CanvasView::drawBackground(QPainter *painter, const QRectF &rect)
+// {
+//     QGraphicsView::drawBackground(painter, rect);
+
+//     // 绘制固定像素间距的网格
+//     // 获取当前变换的缩放因子
+//     QTransform t = transform();
+//     qreal currentScale = qSqrt(t.m11() * t.m11() + t.m12() * t.m12());
+
+//     // 固定的屏幕像素间距
+//     const qreal smallGridPixels = 20.0;  // 小网格20像素间距
+//     const qreal largeGridPixels = 100.0; // 大网格100像素间距
+
+//     // 转换为场景坐标系中的间距（这个会随缩放变化）
+//     qreal smallGridSize = smallGridPixels / currentScale;
+//     qreal largeGridSize = largeGridPixels / currentScale;
+
+//     // 绘制小网格
+//     qreal left = qFloor(rect.left() / smallGridSize) * smallGridSize;
+//     qreal top = qFloor(rect.top() / smallGridSize) * smallGridSize;
+
+//     QVarLengthArray<QLineF, 100> lines;
+
+//     for (qreal x = left; x < rect.right(); x += smallGridSize) {
+//         lines.append(QLineF(x, rect.top(), x, rect.bottom()));
+//     }
+
+//     for (qreal y = top; y < rect.bottom(); y += smallGridSize) {
+//         lines.append(QLineF(rect.left(), y, rect.right(), y));
+//     }
+
+//     // 绘制细网格线
+//     painter->setPen(QPen(QColor(240, 240, 240), 0));
+//     painter->drawLines(lines.data(), lines.size());
+
+//     // 绘制大网格线
+//     QVarLengthArray<QLineF, 20> majorLines;
+
+//     qreal majorLeft = qFloor(rect.left() / largeGridSize) * largeGridSize;
+//     qreal majorTop = qFloor(rect.top() / largeGridSize) * largeGridSize;
+
+//     for (qreal x = majorLeft; x < rect.right(); x += largeGridSize) {
+//         majorLines.append(QLineF(x, rect.top(), x, rect.bottom()));
+//     }
+
+//     for (qreal y = majorTop; y < rect.bottom(); y += largeGridSize) {
+//         majorLines.append(QLineF(rect.left(), y, rect.right(), y));
+//     }
+
+//     painter->setPen(QPen(QColor(200, 200, 200), 0));
+//     painter->drawLines(majorLines.data(), majorLines.size());
+// }
+
 void CanvasView::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsView::drawBackground(painter, rect);
 
-    // 绘制固定像素间距的网格
-    // 获取当前变换的缩放因子
-    QTransform t = transform();
-    qreal currentScale = qSqrt(t.m11() * t.m11() + t.m12() * t.m12());
+    if (!gridVisible) return;
+    // 绘制网格
+    const QRectF sceneRect = this->sceneRect();
 
-    // 固定的屏幕像素间距
-    const qreal smallGridPixels = 20.0;  // 小网格20像素间距
-    const qreal largeGridPixels = 100.0; // 大网格100像素间距
-
-    // 转换为场景坐标系中的间距（这个会随缩放变化）
-    qreal smallGridSize = smallGridPixels / currentScale;
-    qreal largeGridSize = largeGridPixels / currentScale;
-
-    // 绘制小网格
-    qreal left = qFloor(rect.left() / smallGridSize) * smallGridSize;
-    qreal top = qFloor(rect.top() / smallGridSize) * smallGridSize;
+    qreal left = int(rect.left()) - (int(rect.left()) % gridSize);
+    qreal top = int(rect.top()) - (int(rect.top()) % gridSize);
 
     QVarLengthArray<QLineF, 100> lines;
 
-    for (qreal x = left; x < rect.right(); x += smallGridSize) {
+    for (qreal x = left; x < rect.right(); x += gridSize) {
         lines.append(QLineF(x, rect.top(), x, rect.bottom()));
     }
 
-    for (qreal y = top; y < rect.bottom(); y += smallGridSize) {
+    for (qreal y = top; y < rect.bottom(); y += gridSize) {
         lines.append(QLineF(rect.left(), y, rect.right(), y));
     }
 
-    // 绘制细网格线
-    painter->setPen(QPen(QColor(240, 240, 240), 0));
-    painter->drawLines(lines.data(), lines.size());
-
-    // 绘制大网格线
-    QVarLengthArray<QLineF, 20> majorLines;
-
-    qreal majorLeft = qFloor(rect.left() / largeGridSize) * largeGridSize;
-    qreal majorTop = qFloor(rect.top() / largeGridSize) * largeGridSize;
-
-    for (qreal x = majorLeft; x < rect.right(); x += largeGridSize) {
-        majorLines.append(QLineF(x, rect.top(), x, rect.bottom()));
-    }
-
-    for (qreal y = majorTop; y < rect.bottom(); y += largeGridSize) {
-        majorLines.append(QLineF(rect.left(), y, rect.right(), y));
-    }
-
     painter->setPen(QPen(QColor(200, 200, 200), 0));
-    painter->drawLines(majorLines.data(), majorLines.size());
+    painter->drawLines(lines.data(), lines.size());
 }
 
 void CanvasView::updateAllConnectionLineWidths()

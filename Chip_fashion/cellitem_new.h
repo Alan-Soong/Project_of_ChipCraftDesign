@@ -13,6 +13,7 @@
 #include <QPainterPath>
 
 class PinItem;
+class MoveCellCommand;  // 前向声明
 
 /**
  * 芯片单元项 - 重构后的版本
@@ -24,6 +25,8 @@ class PinItem;
  */
 class CellItem : public QGraphicsItem
 {
+    friend class MoveCellCommand;  // 友元类声明
+
 public:
     explicit CellItem(QGraphicsItem *parent = nullptr);
     ~CellItem(); // 添加析构函数确保清理资源
@@ -78,6 +81,7 @@ public:
 
     // 连线相关方法
     void addConnection(CellItem* targetCell, const QString& sourcePin, const QString& targetPin);
+    void removeConnection(CellItem* targetCell, const QString& sourcePin, const QString& targetPin);
     QList<QPair<CellItem*, QPair<QString, QString>>> getConnections() const { return m_connections; }
 
     // 设置和获取宏名称
@@ -107,10 +111,16 @@ private:
     QString m_instanceName; // 实例名称
     bool m_updatingOverlap; // 标志位，防止重复更新重叠状态
 
+    // 撤销系统相关
+    QPointF m_lastRecordedPosition; // 记录上次位置，用于撤销
+    bool m_positionUpdateInProgress; // 标志位，防止程序化位置更新触发撤销命令
+    QPointF m_dragStartPosition; // 记录拖动开始时的位置
+
     bool isOnEdgeOrCorner(const QPointF &pos, ResizeEdge &edge) const; // 检测边框或角点
     void restrictSizeAndPosition(QSizeF& size, QPointF& pos);
     void onDoubleClick();  // 双击事件处理
     void updatePinPositions(); // 更新引脚位置
+    void updateMacroName(); // 根据引脚数量更新宏名称
 
     static constexpr qreal edgeWidth = 5.0; // 边框检测宽度
     static constexpr qreal cornerSize = 5.0; // 角点检测区域大小

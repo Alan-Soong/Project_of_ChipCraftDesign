@@ -24,9 +24,19 @@ public:
 
     void updatePosition(); // 更新连线位置
     void updateLineWidth(); // 更新连线粗细，根据缩放自适应
+
     // 添加 getter 方法
     CellItem* getStartItem() const { return m_startItem; }
     CellItem* getEndItem() const { return m_endItem; }
+    CellItem* getSourceCell() const { return m_startItem; }
+    CellItem* getTargetCell() const { return m_endItem; }
+    CellItem::Connector getStartConnector() const { return m_startConnector; }
+    CellItem::Connector getEndConnector() const { return m_endConnector; }
+    CellItem::Connector getSourceConnector() const { return m_startConnector; }
+    CellItem::Connector getTargetConnector() const { return m_endConnector; }
+
+protected:
+    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 
 private:
     CellItem* m_startItem;

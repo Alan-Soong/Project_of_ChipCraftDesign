@@ -2,6 +2,8 @@
 #include "cellitem_new.h"
 #include <QDebug>
 #include <QGraphicsScene>
+#include <QGraphicsSceneHoverEvent>
+#include <QCursor>
 
 PinItem::PinItem(QGraphicsItem* parentRect, qreal size, QGraphicsItem* parent)
     : QGraphicsEllipseItem(0, 0, size, size, parent)
@@ -10,29 +12,28 @@ PinItem::PinItem(QGraphicsItem* parentRect, qreal size, QGraphicsItem* parent)
     , m_x(0.0)
     , m_y(0.0)
 {
-    setFlag(QGraphicsItem::ItemIsMovable);
+    // 引脚不应该可移动或可选择，只能通过对话框编辑
+    setFlag(QGraphicsItem::ItemIsMovable, false);
+    setFlag(QGraphicsItem::ItemIsSelectable, false);
     setFlag(QGraphicsItem::ItemSendsGeometryChanges);
-    setPen(QPen(Qt::blue, 2));
-    setBrush(QColorConstants::Svg::lightblue);
+
+    // 启用悬停事件，提供连线提示
+    setAcceptHoverEvents(true);
+
+    // 设置蓝色的默认样式
+    setPen(QPen(Qt::darkBlue, 1));
+    setBrush(Qt::blue);
+
+    // 确保不被选中
+    setSelected(false);
 }
 
 QVariant PinItem::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     if (change == ItemPositionChange && parentRect) {
-        QPointF newPos = value.toPointF();
-        QRectF parentBounds = parentRect->boundingRect();
-
-        QString side;
-        qreal percentage;
-        QPointF restrictedPos = restrictToEdge(newPos, parentBounds.width(),
-                                               parentBounds.height(), side, percentage);
-
-        m_side = side;
-        m_percentage = percentage;
-        m_x = restrictedPos.x();
-        m_y = restrictedPos.y();
-
-        return restrictedPos;
+        // 引脚不应该通过拖动改变位置，只能通过对话框编辑
+        // 返回当前位置，阻止位置变化
+        return pos();
     }
     return QGraphicsEllipseItem::itemChange(change, value);
 }
@@ -100,16 +101,32 @@ QPointF PinItem::restrictToEdge(const QPointF& pos, qreal width, qreal height,
 
 void PinItem::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 {
-    QGraphicsEllipseItem::mouseMoveEvent(event);
+    // 引脚不应该可拖动，忽略鼠标移动事件
+    Q_UNUSED(event);
+    // 不调用基类的处理，防止拖动
 }
 
 void PinItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
 {
-    QGraphicsEllipseItem::mouseReleaseEvent(event);
+    // 引脚不应该可拖动，但仍然可以用于连线
+    Q_UNUSED(event);
+    // 可以在这里处理连线相关的逻辑，但不处理拖动
+}
 
-    // 通知父对象引脚位置已更改
-    if (CellItem* cellItem = qgraphicsitem_cast<CellItem*>(parentRect)) {
-        // 这里可以添加通知逻辑
-        qDebug() << "Pin" << m_id << "moved to" << pos() << "side:" << m_side << "percentage:" << m_percentage;
-    }
+void PinItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event)
+{
+    Q_UNUSED(event);
+    // 鼠标悬停时高亮显示，表示可以用于连线
+    setPen(QPen(Qt::cyan, 2));
+    setBrush(Qt::cyan);
+    setCursor(Qt::CrossCursor); // 设置十字光标，表示可用于连线
+}
+
+void PinItem::hoverLeaveEvent(QGraphicsSceneHoverEvent* event)
+{
+    Q_UNUSED(event);
+    // 鼠标离开时恢复默认蓝色样式
+    setPen(QPen(Qt::darkBlue, 1));
+    setBrush(Qt::blue);
+    setCursor(Qt::ArrowCursor); // 恢复默认光标
 }

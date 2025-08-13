@@ -5,11 +5,11 @@
 #include "connectionline.h"
 #include "chipmanager.h"
 #include "filemanager.h"
-#include "componentsettingsdialog.h"
 #include "pineditordialog.h"
 #include "command.h"
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QDebug>
 #include <QFile>
 #include <QTextStream>
@@ -54,9 +54,12 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    // 设置场景和视图，默认显示0,0到100,100的区域
+    // 设置场景和视图，默认显示-1000,0到1000,1000的区域
     m_scene = new CanvasScene(this);
-    m_scene->setSceneRect(0, 0, 100, 100);
+    m_scene->setSceneRect(-500, 0, 500, 1000);
+
+    // 设置撤销栈
+    m_scene->setUndoStack(m_undoStack);
 
     m_view = new CanvasView(m_scene);
     m_view->setParent(this);
@@ -147,25 +150,88 @@ void MainWindow::newFile()
 
     updateWindowTitle("新文件");
 
-    // 创建初始芯片
+    // 创建初始芯片 - 只在用户明确选择新建文件时创建
     on_addRectangleButton_clicked();
+}
+
+void MainWindow::newProject()
+{
+    // 清理当前项目，准备新建项目或打开文件
+    m_scene->clear();
+    m_currentFilePath.clear();
+    m_chipManager->resetChipCounter();
+    m_isModified = false;
+
+    updateWindowTitle("新项目");
+
+    // 注意：newProject 不自动创建芯片，这样打开文件时场景是干净的
 }
 
 void MainWindow::openFile()
 {
-    QString filePath = QFileDialog::getOpenFileName(this, "打开文件", "", "设计文件 (*.txt);;所有文件 (*)");
-    if (filePath.isEmpty()) return;
+    qDebug() << "========== 开始打开文件 ==========";
+
+    // 检查是否已经打开了文件
+    if (!m_currentFilePath.isEmpty()) {
+        qDebug() << "当前已有文件:" << m_currentFilePath;
+
+        // 创建确认对话框
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("打开文件确认");
+        msgBox.setText("当前已经打开了一个设计文件。");
+        msgBox.setInformativeText("请选择您希望如何处理当前工作：\n\n"
+                                  "• 新建项目：清空当前内容，创建空白项目后再打开新文件\n"
+                                  "• 重新打开：直接用新文件替换当前内容\n"
+                                  "• 取消：保持当前状态，不打开新文件");
+        msgBox.setIcon(QMessageBox::Question);
+
+        // 添加自定义按钮
+        QPushButton *newButton = msgBox.addButton("新建项目", QMessageBox::ActionRole);
+        QPushButton *reopenButton = msgBox.addButton("重新打开", QMessageBox::ActionRole);
+        QPushButton *cancelButton = msgBox.addButton("取消", QMessageBox::RejectRole);
+
+        msgBox.setDefaultButton(reopenButton);
+
+        msgBox.exec();
+
+        if (msgBox.clickedButton() == cancelButton) {
+            qDebug() << "用户取消打开文件";
+            return; // 用户选择取消
+        } else if (msgBox.clickedButton() == newButton) {
+            // 用户选择新建项目，先清理当前场景
+            qDebug() << "用户选择新建项目，先清理场景";
+            newProject();
+        }
+        // 如果选择重新打开，继续执行打开文件的逻辑
+    }
+
+    QString filePath = QFileDialog::getOpenFileName(this, "打开文件", "", "设计文件 (*.place *.txt);;Place文件 (*.place);;文本文件 (*.txt);;所有文件 (*)");
+    if (filePath.isEmpty()) {
+        qDebug() << "用户未选择文件";
+        return;
+    }
+
+    qDebug() << "选择的文件:" << filePath;
+    qDebug() << "当前画布单位:" << m_scene->get_unit();
+    qDebug() << "打开前场景中芯片数量:" << m_scene->getAllCellItems().size();
 
     if (m_fileManager->openDesignFile(filePath, m_scene)) {
+        qDebug() << "文件加载成功！";
         m_currentFilePath = filePath;
         m_isModified = false;
         updateWindowTitle(QFileInfo(filePath).fileName());
 
+        qDebug() << "打开后场景中芯片数量:" << m_scene->getAllCellItems().size();
+        qDebug() << "场景矩形:" << m_scene->sceneRect();
+
         // 使用QTimer延迟调整视图，确保所有芯片都已渲染完成
         QTimer::singleShot(100, this, &MainWindow::fitViewToContent);
     } else {
+        qDebug() << "文件加载失败:" << m_fileManager->getLastError();
         QMessageBox::warning(this, "错误", "无法打开文件：" + m_fileManager->getLastError());
     }
+
+    qDebug() << "========== 打开文件完成 ==========";
 }
 
 void MainWindow::saveFile()
@@ -186,7 +252,7 @@ void MainWindow::saveFile()
 
 void MainWindow::saveFileAs()
 {
-    QString filePath = QFileDialog::getSaveFileName(this, "另存为", "", "设计文件 (*.txt);;所有文件 (*)");
+    QString filePath = QFileDialog::getSaveFileName(this, "另存为", "", "设计文件 (*.place *.txt);;Place文件 (*.place);;文本文件 (*.txt);;所有文件 (*)");
     if (filePath.isEmpty()) return;
 
     QList<CellItem*> cellItems = m_scene->getAllCellItems();
@@ -201,7 +267,7 @@ void MainWindow::saveFileAs()
 
 void MainWindow::exportFiles()
 {
-    QString filePath = QFileDialog::getSaveFileName(this, "导出宏文件", "", "宏文件 (*.macro);;所有文件 (*)");
+    QString filePath = QFileDialog::getSaveFileName(this, "导出宏文件", "", "宏文件 (*.macro);;Place文件 (*.place);;文本文件 (*.txt);;所有文件 (*)");
     if (filePath.isEmpty()) return;
 
     QList<CellItem*> cellItems = m_scene->getAllCellItems();
@@ -214,17 +280,19 @@ void MainWindow::exportFiles()
 
 void MainWindow::on_addRectangleButton_clicked()
 {
-    // 根据当前场景矩形确定合理的添加位置
-    QRectF sceneRect = m_scene->sceneRect();
-    QPointF pos(sceneRect.width() * 0.5, sceneRect.height() * 0.5); // 场景中心
+    // 获取视图中心在场景坐标系中的位置
+    QPointF viewCenter = m_view->rect().center();
+    QPointF scenePos = m_view->mapToScene(viewCenter.toPoint());
+
+    qDebug() << "视图中心:" << viewCenter << "对应场景坐标:" << scenePos;
 
     // 使用命令模式支持撤销/重做，传入ChipManager而不是计数器
-    m_undoStack->push(new AddRectangleCommand(m_scene, pos, m_chipManager, m_undoStack));
+    m_undoStack->push(new AddRectangleCommand(m_scene, scenePos, m_chipManager, m_undoStack));
 
     m_isModified = true;
     updateWindowTitle();
 
-    qDebug() << "添加芯片到位置" << pos;
+    qDebug() << "添加芯片到视图中心位置" << scenePos;
 }
 
 void MainWindow::on_selectButton_clicked()
@@ -268,9 +336,46 @@ void MainWindow::on_deleteButton_clicked()
         return;
     }
 
+    int cellCount = 0;
+    int lineCount = 0;
+
+    // 统计选中的项目类型
+    for (QGraphicsItem* item : selectedItems) {
+        if (dynamic_cast<CellItem*>(item)) {
+            cellCount++;
+        } else if (dynamic_cast<ConnectionLine*>(item)) {
+            lineCount++;
+        }
+    }
+
+    // 显示确认对话框
+    QString message;
+    if (cellCount > 0 && lineCount > 0) {
+        message = QString("确定要删除 %1 个芯片和 %2 条连线吗？").arg(cellCount).arg(lineCount);
+    } else if (cellCount > 0) {
+        message = QString("确定要删除 %1 个芯片吗？").arg(cellCount);
+    } else if (lineCount > 0) {
+        message = QString("确定要删除 %1 条连线吗？").arg(lineCount);
+    } else {
+        QMessageBox::information(this, "提示", "没有可删除的项目");
+        return;
+    }
+
+    int ret = QMessageBox::question(this, "确认删除", message,
+                                    QMessageBox::Yes | QMessageBox::No,
+                                    QMessageBox::No);
+    if (ret != QMessageBox::Yes) {
+        return;
+    }
+
+    // 执行删除操作
     for (QGraphicsItem* item : selectedItems) {
         if (CellItem* cellItem = dynamic_cast<CellItem*>(item)) {
+            // 删除芯片（使用撤销命令）
             m_undoStack->push(new DeleteRectangleCommand(m_scene, cellItem, m_undoStack));
+        } else if (ConnectionLine* line = dynamic_cast<ConnectionLine*>(item)) {
+            // 删除连线（直接删除，也可以考虑添加撤销命令）
+            m_scene->removeConnectionLine(line);
         }
     }
 
@@ -425,4 +530,25 @@ void MainWindow::fitViewToContent()
             });
         }
     }
+}
+
+//将背景画布网格进行调整
+void MainWindow::on_actionmm_triggered()
+{
+    m_view->setGridSize(10);
+    m_scene->set_unit("mm");
+}
+
+
+void MainWindow::on_actioncm_triggered()
+{
+    m_view->setGridSize(100);
+    m_scene->set_unit("cm");
+}
+
+
+void MainWindow::on_actiondm_triggered()
+{
+    m_view->setGridSize(1000);
+    m_scene->set_unit("dm");
 }
