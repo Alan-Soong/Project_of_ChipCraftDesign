@@ -64,8 +64,8 @@ public:
 
     // 添加新方法声明
     void updateOverlapStates();  // 更新所有矩形的重合状态
-    void addRectangle();  // 添加新矩形
     bool isGroupMoving() const { return m_isGroupMoving; }  // 检查是否在组移动模式
+    void fitToWindow();  // 自动适应视图到所有内容
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -118,9 +118,6 @@ private:
     // 标尺相关属性
     bool m_rulerVisible = true;  // 标尺是否可见
     QColor m_rulerColor = Qt::black;  // 标尺颜色
-    int m_rulerSize = 20;  // 标尺大小（像素），再调小一点
-    int m_rulerTickSize = 5;  // 标尺刻度大小，再调小一点
-    int m_rulerTextOffset = 5;  // 标尺文字偏移，再调小一点
     int m_rulerSize = 20;  // 标尺大小（像素），再调小一点
     int m_rulerTickSize = 5;  // 标尺刻度大小，再调小一点
     int m_rulerTextOffset = 5;  // 标尺文字偏移，再调小一点

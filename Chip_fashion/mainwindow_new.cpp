@@ -54,11 +54,10 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    // 设置场景和视图，默认显示-1000,0到1000,1000的区域
-    // 设置场景和视图，默认显示-1000,0到1000,1000的区域
+    // 设置场景和视图，创建无限大画布
     m_scene = new CanvasScene(this);
-    m_scene->setSceneRect(-500, 0, 500, 1000);
-
+    // 不需要在这里设置场景矩形，CanvasScene构造函数已经设置了无限大小
+    
     // 设置撤销栈
     m_scene->setUndoStack(m_undoStack);
 
@@ -66,10 +65,11 @@ void MainWindow::setupUI()
     m_view->setParent(this);
     setCentralWidget(m_view);
 
-    // 初始视图适配场景矩形
+    // 初始视图居中显示，不限制在特定矩形内
     QTimer::singleShot(100, [this]() {
         if (m_view && m_scene) {
-            m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+            // 将视图中心定位到场景的原点(0,0)
+            m_view->centerOn(0, 0);
         }
     });
 }
@@ -144,6 +144,43 @@ void MainWindow::connectSignals()
 
 void MainWindow::newFile()
 {
+    qDebug() << "========== 开始新建文件 ==========";
+
+    // 检查是否已经打开了文件
+    if (!m_currentFilePath.isEmpty()) {
+        qDebug() << "当前已有文件:" << m_currentFilePath;
+
+        // 创建确认对话框
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("新建文件确认");
+        msgBox.setText("当前已经打开了一个设计文件。");
+        msgBox.setInformativeText("请选择您希望如何处理当前工作：\n\n"
+                                  "• 直接新建：清空当前内容，创建新的空白文件\n"
+                                  "• 保存后新建：先保存当前文件，然后创建新文件\n"
+                                  "• 取消：保持当前状态，不创建新文件");
+        msgBox.setIcon(QMessageBox::Question);
+
+        // 添加自定义按钮
+        QPushButton *directNewButton = msgBox.addButton("直接新建", QMessageBox::ActionRole);
+        QPushButton *saveAndNewButton = msgBox.addButton("保存后新建", QMessageBox::ActionRole);
+        QPushButton *cancelButton = msgBox.addButton("取消", QMessageBox::RejectRole);
+
+        msgBox.setDefaultButton(saveAndNewButton);
+
+        msgBox.exec();
+
+        if (msgBox.clickedButton() == cancelButton) {
+            qDebug() << "用户取消新建文件";
+            return; // 用户选择取消
+        } else if (msgBox.clickedButton() == saveAndNewButton) {
+            // 用户选择保存后新建，先保存当前文件
+            qDebug() << "用户选择保存后新建文件";
+            saveFile(); // 保存当前文件
+        }
+        // 如果选择直接新建，继续执行新建文件的逻辑
+    }
+
+    // 清理当前项目，创建新的空白文件
     m_scene->clear();
     m_currentFilePath.clear();
     m_chipManager->resetChipCounter();
@@ -151,8 +188,10 @@ void MainWindow::newFile()
 
     updateWindowTitle("新文件");
 
-    // 创建初始芯片 - 只在用户明确选择新建文件时创建
-    on_addRectangleButton_clicked();
+    // 不自动创建芯片，让用户手动添加或通过文件加载
+    // 这样与打开文件的逻辑保持一致
+    
+    qDebug() << "========== 新建文件完成 ==========";
 }
 
 void MainWindow::newProject()
@@ -422,115 +461,23 @@ void MainWindow::fitViewToContent()
 {
     if (!m_scene || !m_view) return;
 
-    // 优先使用场景矩形（DieSize定义的区域）
-    QRectF sceneRect = m_scene->sceneRect();
-    if (!sceneRect.isNull() && sceneRect.width() > 0 && sceneRect.height() > 0) {
-        qDebug() << "使用场景矩形适配视图:" << sceneRect;
-
-        // 计算合适的缩放，让芯片有足够的显示空间
-        // 获取所有芯片，分析它们的平均大小
-        QList<CellItem*> cellItems = m_scene->getAllCellItems();
-        qreal averageChipSize = 10.0; // 默认芯片大小
-
-        if (!cellItems.isEmpty()) {
-            qreal totalSize = 0;
-            for (CellItem* item : cellItems) {
-                QSizeF chipSize = item->size();
-                totalSize += (chipSize.width() + chipSize.height()) / 2.0;
-            }
-            averageChipSize = totalSize / cellItems.size();
-        }
-
-        // 根据芯片平均大小计算合适的缩放
-        // 目标：让平均芯片在屏幕上显示为50-100像素
-        qreal targetChipPixelSize = 75.0; // 目标像素大小
-        qreal optimalScale = targetChipPixelSize / averageChipSize;
-
-        // 限制缩放范围
-        const qreal minScale = 2.0;   // 最小缩放
-        const qreal maxScale = 20.0;  // 最大缩放
-        optimalScale = qBound(minScale, optimalScale, maxScale);
-
-        // 为场景矩形添加适量边距
-        qreal marginX = sceneRect.width() * 0.1;
-        qreal marginY = sceneRect.height() * 0.1;
-        QRectF viewRect = sceneRect.adjusted(-marginX, -marginY, marginX, marginY);
-
-        // 先适应场景
-        m_view->fitInView(viewRect, Qt::KeepAspectRatio);
-
-        // 然后应用优化的缩放
-        qreal currentScale = m_view->transform().m11();
-        qreal adjustFactor = optimalScale / currentScale;
-        m_view->scale(adjustFactor, adjustFactor);
-
-        qDebug() << "场景矩形:" << sceneRect;
-        qDebug() << "视图矩形:" << viewRect;
-        qDebug() << "平均芯片大小:" << averageChipSize;
-        qDebug() << "优化缩放因子:" << optimalScale;
-        qDebug() << "最终缩放因子:" << m_view->transform().m11();
-
-        // 缩放后更新所有连线的线宽
-        if (CanvasView* canvasView = qobject_cast<CanvasView*>(m_view)) {
-            QTimer::singleShot(10, [canvasView]() {
-                QList<QGraphicsItem*> items = canvasView->scene()->items();
-                for (QGraphicsItem* item : items) {
-                    ConnectionLine* connectionLine = dynamic_cast<ConnectionLine*>(item);
-                    if (connectionLine) {
-                        connectionLine->updateLineWidth();
-                    }
+    // 使用CanvasScene的新的fitToWindow方法
+    m_scene->fitToWindow();
+    
+    // 缩放后更新所有连线的线宽
+    if (CanvasView* canvasView = qobject_cast<CanvasView*>(m_view)) {
+        QTimer::singleShot(10, [canvasView]() {
+            QList<QGraphicsItem*> items = canvasView->scene()->items();
+            for (QGraphicsItem* item : items) {
+                ConnectionLine* connectionLine = dynamic_cast<ConnectionLine*>(item);
+                if (connectionLine) {
+                    connectionLine->updateLineWidth();
                 }
-            });
-        }
-        return;
-    }
-
-    // 如果没有有效的场景矩形，则根据芯片内容调整
-    QList<CellItem*> cellItems = m_scene->getAllCellItems();
-    if (cellItems.isEmpty()) {
-        qDebug() << "没有内容可以适配";
-        return;
-    }
-
-    // 计算所有芯片的包围盒
-    QRectF contentRect;
-    for (CellItem* item : cellItems) {
-        if (item) {
-            QRectF itemRect = QRectF(item->pos(), item->size());
-            if (contentRect.isNull()) {
-                contentRect = itemRect;
-            } else {
-                contentRect = contentRect.united(itemRect);
             }
-        }
+        });
     }
-
-    if (!contentRect.isNull()) {
-        // 添加足够的边距以便芯片移动
-        qreal marginX = qMax(contentRect.width() * 0.3, 50.0); // 至少50像素边距
-        qreal marginY = qMax(contentRect.height() * 0.3, 50.0);
-        contentRect.adjust(-marginX, -marginY, marginX, marginY);
-
-        // 让视图适应内容
-        m_view->fitInView(contentRect, Qt::KeepAspectRatio);
-
-        qDebug() << "已根据芯片内容调整视图";
-        qDebug() << "内容矩形:" << contentRect;
-        qDebug() << "最终缩放因子:" << m_view->transform().m11();
-
-        // 缩放后更新所有连线的线宽
-        if (CanvasView* canvasView = qobject_cast<CanvasView*>(m_view)) {
-            QTimer::singleShot(10, [canvasView]() {
-                QList<QGraphicsItem*> items = canvasView->scene()->items();
-                for (QGraphicsItem* item : items) {
-                    ConnectionLine* connectionLine = dynamic_cast<ConnectionLine*>(item);
-                    if (connectionLine) {
-                        connectionLine->updateLineWidth();
-                    }
-                }
-            });
-        }
-    }
+    
+    qDebug() << "视图已适配到内容，最终缩放因子:" << m_view->transform().m11();
 }
 
 //将背景画布网格进行调整

@@ -16,9 +16,8 @@
 CanvasScene::CanvasScene(QObject *parent)
     : QGraphicsScene(parent), undoStack(new QUndoStack(this))
 {
-    // 设置一个合理的默认场景矩形：从(-1000, -1000)到(1000, 1000)
-    setSceneRect(-1000, -1000, 1000, 1000);
-    setSceneRect(-1000, -1000, 1000, 1000);
+    // 设置一个非常大的场景矩形，模拟无限画布：从(-100000, -100000)到(100000, 100000)
+    setSceneRect(-100000, -100000, 200000, 200000);
     m_tempLine = nullptr;
     m_isGroupMoving = false;
     m_groupMoveStartPos = QPointF();
@@ -92,15 +91,8 @@ void CanvasScene::setZoomFactor(qreal factor)
     for (QGraphicsView *view : views()) {
         view->resetTransform();
         view->scale(m_zoomFactor, m_zoomFactor);
-
-        // 只在场景矩形是默认大小时才调整，避免覆盖从文件加载的尺寸
-        QRectF currentRect = sceneRect();
-        if (qAbs(currentRect.width() - 2000) < 1.0 && qAbs(currentRect.height() - 2000) < 1.0) {
-            qreal newSize = 2000 * (1.0 / factor);
-            setSceneRect(-newSize/2, -newSize/2, newSize, newSize);
-        }
     }
-
+    
     update();
 }
 
@@ -438,15 +430,65 @@ void CanvasScene::updateOverlapStates()
     }
 }
 
-void CanvasScene::addRectangle()
+void CanvasScene::fitToWindow()
 {
-    // 创建新的CellItem
-    CellItem* newItem = new CellItem();
-    newItem->setPos(0, 0);  // 设置初始位置
-    addCellItem(newItem);
+    QList<QGraphicsView*> views = this->views();
+    if (views.isEmpty()) {
+        return;
+    }
 
-    // 在添加新矩形后更新所有矩形的重合状态
-    updateOverlapStates();
+    QGraphicsView* view = views.first();
+    
+    // 获取所有项目的边界矩形
+    QRectF itemsBoundingRect;
+    QList<QGraphicsItem*> allItems = items();
+    
+    bool hasItems = false;
+    for (QGraphicsItem* item : allItems) {
+        // 只考虑CellItem和ConnectionLine，忽略临时线
+        if (dynamic_cast<CellItem*>(item) || dynamic_cast<ConnectionLine*>(item)) {
+            if (!hasItems) {
+                itemsBoundingRect = item->sceneBoundingRect();
+                hasItems = true;
+            } else {
+                itemsBoundingRect = itemsBoundingRect.united(item->sceneBoundingRect());
+            }
+        }
+    }
+    
+    if (!hasItems) {
+        // 如果没有项目，则重置到默认视图
+        view->resetTransform();
+        m_zoomFactor = 1.0;
+        return;
+    }
+    
+    // 添加边距（10%的边距）
+    qreal margin = qMax(itemsBoundingRect.width(), itemsBoundingRect.height()) * 0.1;
+    itemsBoundingRect.adjust(-margin, -margin, margin, margin);
+    
+    // 重置变换
+    view->resetTransform();
+    
+    // 使用fitInView来适应内容到视图
+    view->fitInView(itemsBoundingRect, Qt::KeepAspectRatio);
+    
+    // 获取新的缩放因子
+    QTransform transform = view->transform();
+    m_zoomFactor = transform.m11();
+    
+    // 确保缩放因子在允许范围内
+    if (m_zoomFactor < m_minZoom) {
+        qreal scaleFactor = m_minZoom / m_zoomFactor;
+        view->scale(scaleFactor, scaleFactor);
+        m_zoomFactor = m_minZoom;
+    } else if (m_zoomFactor > m_maxZoom) {
+        qreal scaleFactor = m_maxZoom / m_zoomFactor;
+        view->scale(scaleFactor, scaleFactor);
+        m_zoomFactor = m_maxZoom;
+    }
+    
+    qDebug() << "Fit to window: 边界矩形 =" << itemsBoundingRect << ", 缩放因子 =" << m_zoomFactor;
 }
 
 void CanvasScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
@@ -620,7 +662,55 @@ void CanvasScene::keyReleaseEvent(QKeyEvent *event)
 
 void CanvasScene::wheelEvent(QGraphicsSceneWheelEvent *event)
 {
-    QGraphicsScene::wheelEvent(event);
+    if (!event) return;
+
+    // 获取视图列表
+    QList<QGraphicsView*> views = this->views();
+    if (views.isEmpty()) {
+        QGraphicsScene::wheelEvent(event);
+        return;
+    }
+
+    QGraphicsView* view = views.first();
+    
+    // 保存当前鼠标在场景中的位置
+    QPointF scenePos = event->scenePos();
+    
+    // 计算缩放因子
+    qreal scaleFactor = 1.15; // 缩放步长
+    if (event->delta() < 0) {
+        scaleFactor = 1.0 / scaleFactor; // 缩小
+    }
+    
+    // 获取当前变换矩阵
+    QTransform transform = view->transform();
+    qreal currentScale = transform.m11();
+    
+    // 计算新的缩放比例
+    qreal newScale = currentScale * scaleFactor;
+    
+    // 限制缩放范围
+    if (newScale < m_minZoom || newScale > m_maxZoom) {
+        return; // 超出范围，不进行缩放
+    }
+    
+    // 保存鼠标在视图中的位置
+    QPointF viewPos = view->mapFromScene(scenePos);
+    
+    // 应用缩放
+    view->scale(scaleFactor, scaleFactor);
+    
+    // 计算缩放后鼠标位置在场景中的新位置
+    QPointF newScenePos = view->mapToScene(viewPos.toPoint());
+    
+    // 计算偏移量并调整视图中心
+    QPointF delta = newScenePos - scenePos;
+    view->translate(delta.x(), delta.y());
+    
+    // 更新缩放因子
+    m_zoomFactor = newScale;
+    
+    event->accept();
 }
 
 void CanvasScene::drawBackground(QPainter *painter, const QRectF &rect)
@@ -670,12 +760,12 @@ void CanvasScene::drawBackground(QPainter *painter, const QRectF &rect)
 void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsScene::drawForeground(painter, rect);
-    
+
     if (!m_rulerVisible) return;
-    
+
     // 绘制标尺
     painter->save();
-    
+
     QPen pen(m_rulerColor, 1);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -780,6 +870,6 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
             }
         }
     }
-    
+
     painter->restore();
 }
