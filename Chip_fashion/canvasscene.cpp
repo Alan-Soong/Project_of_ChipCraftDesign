@@ -18,6 +18,7 @@ CanvasScene::CanvasScene(QObject *parent)
 {
     // 设置一个合理的默认场景矩形：从(-1000, -1000)到(1000, 1000)
     setSceneRect(-1000, -1000, 1000, 1000);
+    setSceneRect(-1000, -1000, 1000, 1000);
     m_tempLine = nullptr;
     m_isGroupMoving = false;
     m_groupMoveStartPos = QPointF();
@@ -669,12 +670,12 @@ void CanvasScene::drawBackground(QPainter *painter, const QRectF &rect)
 void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsScene::drawForeground(painter, rect);
-
+    
     if (!m_rulerVisible) return;
-
+    
     // 绘制标尺
     painter->save();
-
+    
     QPen pen(m_rulerColor, 1);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -779,6 +780,6 @@ void CanvasScene::drawForeground(QPainter *painter, const QRectF &rect)
             }
         }
     }
-
+    
     painter->restore();
 }

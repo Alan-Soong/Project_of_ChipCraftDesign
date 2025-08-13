@@ -55,6 +55,7 @@ MainWindow::~MainWindow()
 void MainWindow::setupUI()
 {
     // 设置场景和视图，默认显示-1000,0到1000,1000的区域
+    // 设置场景和视图，默认显示-1000,0到1000,1000的区域
     m_scene = new CanvasScene(this);
     m_scene->setSceneRect(-500, 0, 500, 1000);
 

@@ -121,5 +121,8 @@ private:
     int m_rulerSize = 20;  // 标尺大小（像素），再调小一点
     int m_rulerTickSize = 5;  // 标尺刻度大小，再调小一点
     int m_rulerTextOffset = 5;  // 标尺文字偏移，再调小一点
+    int m_rulerSize = 20;  // 标尺大小（像素），再调小一点
+    int m_rulerTickSize = 5;  // 标尺刻度大小，再调小一点
+    int m_rulerTextOffset = 5;  // 标尺文字偏移，再调小一点
 };
 #endif // CANVASSCENE_H
