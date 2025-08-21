@@ -20,71 +20,34 @@
    <string>ChipCraft Design Studio</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">/* 主窗口样式 */
-QMainWindow {
-    background-color: #f3f3f3;
-    color: #323130;
-}
+   <string notr="true">/* 经典风格 + 轻度色彩点缀 */
+QMainWindow { background: #e9eef3; color: #1f2937; }
 
-/* 菜单栏样式 */
-QMenuBar {
-    background-color: #ffffff;
-    border-bottom: 1px solid #e1dfdd;
-    font-size: 14px;
-    padding: 4px;
-}
+QMenuBar { background: #ffffff; border-bottom: 1px solid #d0d7de; }
+QMenu { background: #ffffff; border: 1px solid #d0d7de; }
+QMenuBar::item { padding: 4px 10px; }
+QMenu::item { padding: 4px 16px; }
+QMenu::item:selected { background: #e6f0ff; }
 
-QMenuBar::item {
-    background-color: transparent;
-    padding: 8px 16px;
-    margin: 0px 2px;
-    border-radius: 4px;
-}
+QDockWidget { background: #f7fafc; border: 1px solid #d0d7de; }
+QDockWidget::title { background: #eef5ff; padding: 6px; font-weight: 600; color: #0f4c81; }
 
-QMenuBar::item:selected {
-    background-color: #f3f2f1;
-    color: #323130;
+QToolBar {
+    background: qlineargradient(y1:0, y2:1, stop:0 #f7fafc, stop:1 #eef5ff);
+    border-bottom: 1px solid #b6c5d5;
+    spacing: 6px;
 }
+QToolButton { padding: 4px; border: 1px solid transparent; }
+QToolButton:hover { background: #e6f0ff; border-color: #b6c5d5; }
+QToolButton:pressed { background: #d9e8ff; border-color: #94a9c4; }
 
-QMenuBar::item:pressed {
-    background-color: #edebe9;
-}
+QStatusBar { background: #ffffff; border-top: 1px solid #d0d7de; }
 
-/* 菜单样式 */
-QMenu {
-    background-color: #ffffff;
-    border: 1px solid #e1dfdd;
-    border-radius: 8px;
-    padding: 8px 0px;
-    font-size: 14px;
-}
+QPushButton { background: #ffffff; border: 1px solid #d0d7de; padding: 4px 8px; }
+QPushButton:hover { background: #f3f8ff; border-color: #b6c5d5; }
+QPushButton:pressed { background: #e6f0ff; border-color: #94a9c4; }
 
-QMenu::item {
-    padding: 8px 24px;
-    margin: 2px 8px;
-    border-radius: 4px;
-}
-
-QMenu::item:selected {
-    background-color: #f3f2f1;
-    color: #323130;
-}
-
-/* 停靠窗口样式 */
-QDockWidget {
-    background-color: #faf9f8;
-    border: 1px solid #e1dfdd;
-    border-radius: 8px;
-    font-size: 14px;
-}
-
-QDockWidget::title {
-    background-color: #ffffff;
-    border-bottom: 1px solid #e1dfdd;
-    padding: 12px;
-    font-weight: 600;
-    color: #323130;
-}</string>
+QGraphicsView { background: #ffffff; border: 1px solid #c0c0c0; }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
@@ -93,12 +56,9 @@ QDockWidget::title {
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
-   <property name="styleSheet">
-    <string notr="true">QWidget {
-    background-color: #ffffff;
-    border-radius: 8px;
-}</string>
-   </property>
+    <property name="styleSheet">
+     <string notr="true">QWidget { background: #ffffff; }</string>
+    </property>
    <layout class="QHBoxLayout" name="horizontalLayout">
     <property name="spacing">
      <number>8</number>
@@ -117,17 +77,9 @@ QDockWidget::title {
     </property>
     <item>
      <widget class="QGraphicsView" name="canvasView">
-      <property name="styleSheet">
-       <string notr="true">QGraphicsView {
-    background-color: #ffffff;
-    border: 2px solid #e1dfdd;
-    border-radius: 8px;
-}
-
-QGraphicsView:focus {
-    border-color: #0078d4;
-}</string>
-      </property>
+    <property name="styleSheet">
+     <string notr="true"/>
+    </property>
       <property name="verticalScrollBarPolicy">
        <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
       </property>
@@ -138,6 +90,34 @@ QGraphicsView:focus {
     </item>
    </layout>
   </widget>
+    <widget class="QToolBar" name="mainToolBar">
+     <property name="windowTitle">
+        <string>主工具栏</string>
+     </property>
+     <property name="toolButtonStyle">
+      <enum>Qt::ToolButtonIconOnly</enum>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>20</width>
+       <height>20</height>
+      </size>
+     </property>
+     <attribute name="toolBarArea">
+        <number>4</number>
+     </attribute>
+     <attribute name="toolBarBreak">
+        <bool>false</bool>
+     </attribute>
+     <addaction name="actionnew"/>
+     <addaction name="actionopen"/>
+     <addaction name="actionsave"/>
+     <addaction name="actionsaveOther"/>
+     <addaction name="separator"/>
+     <addaction name="actionaddRect"/>
+     <addaction name="separator"/>
+     <addaction name="actionexit"/>
+    </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
@@ -239,58 +219,12 @@ QGraphicsView:focus {
       <verstretch>0</verstretch>
      </sizepolicy>
     </property>
-    <property name="styleSheet">
-     <string notr="true">/* 工具箱按钮样式 */
-QPushButton {
-    background-color: #ffffff;
-    border: 2px solid #e1dfdd;
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #323130;
-    text-align: left;
-    min-height: 32px;
-}
-
-QPushButton:hover {
-    background-color: #f3f2f1;
-    border-color: #c8c6c4;
-}
-
-QPushButton:pressed {
-    background-color: #edebe9;
-    border-color: #a19f9d;
-}
-
-QPushButton:focus {
-    border-color: #0078d4;
-    outline: none;
-}
-
-/* 特殊按钮颜色 */
-QPushButton#addRectangleButton {
-    background-color: #0078d4;
-    color: #ffffff;
-    border-color: #0078d4;
-}
-
-QPushButton#addRectangleButton:hover {
-    background-color: #106ebe;
-    border-color: #106ebe;
-}
-
-QPushButton#deleteButton {
-    background-color: #d13438;
-    color: #ffffff;
-    border-color: #d13438;
-}
-
-QPushButton#deleteButton:hover {
-    background-color: #b4282c;
-    border-color: #b4282c;
-}</string>
-    </property>
+        <property name="styleSheet">
+         <string notr="true">/* 工具箱轻量经典风格 */
+    QPushButton { text-align: left; min-height: 24px; }
+    QLabel { font-weight: 600; }
+    QFrame { background: #dcdcdc; }</string>
+        </property>
     <layout class="QVBoxLayout" name="verticalLayout_main">
      <property name="spacing">
       <number>12</number>
@@ -309,16 +243,9 @@ QPushButton#deleteButton:hover {
      </property>
      <item>
       <widget class="QLabel" name="toolboxLabel">
-       <property name="styleSheet">
-        <string notr="true">QLabel {
-    font-size: 16px;
-    font-weight: 600;
-    color: #323130;
-    padding: 8px 0px;
-    border: none;
-    background: transparent;
-}</string>
-       </property>
+    <property name="styleSheet">
+     <string notr="true"/>
+    </property>
        <property name="text">
         <string>设计工具</string>
        </property>
@@ -332,19 +259,16 @@ QPushButton#deleteButton:hover {
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="text">
-        <string>+ 添加芯片</string>
-       </property>
+    <property name="text">
+     <string>添加芯片</string>
+    </property>
       </widget>
      </item>
      <item>
       <widget class="Line" name="line_1">
-       <property name="styleSheet">
-        <string notr="true">QFrame {
-    background-color: #e1dfdd;
-    border: none;
-}</string>
-       </property>
+    <property name="styleSheet">
+     <string notr="true"/>
+    </property>
        <property name="orientation">
         <enum>Qt::Orientation::Horizontal</enum>
        </property>
@@ -352,16 +276,9 @@ QPushButton#deleteButton:hover {
      </item>
      <item>
       <widget class="QLabel" name="editLabel">
-       <property name="styleSheet">
-        <string notr="true">QLabel {
-    font-size: 14px;
-    font-weight: 600;
-    color: #605e5c;
-    padding: 4px 0px;
-    border: none;
-    background: transparent;
-}</string>
-       </property>
+    <property name="styleSheet">
+     <string notr="true"/>
+    </property>
        <property name="text">
         <string>编辑操作</string>
        </property>
@@ -375,9 +292,9 @@ QPushButton#deleteButton:hover {
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="text">
-        <string>🔍 选择工具</string>
-       </property>
+    <property name="text">
+     <string>选择工具</string>
+    </property>
       </widget>
      </item>
      <item>
@@ -388,9 +305,9 @@ QPushButton#deleteButton:hover {
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="text">
-        <string>↶ 撤销</string>
-       </property>
+    <property name="text">
+     <string>撤销</string>
+    </property>
       </widget>
      </item>
      <item>
@@ -401,9 +318,9 @@ QPushButton#deleteButton:hover {
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="text">
-        <string>↷ 重做</string>
-       </property>
+    <property name="text">
+     <string>重做</string>
+    </property>
       </widget>
      </item>
      <item>
@@ -414,9 +331,9 @@ QPushButton#deleteButton:hover {
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="text">
-        <string>🗑 删除</string>
-       </property>
+    <property name="text">
+     <string>删除</string>
+    </property>
       </widget>
      </item>
      <item>
@@ -435,6 +352,7 @@ QPushButton#deleteButton:hover {
     </layout>
    </widget>
   </widget>
+    <widget class="QStatusBar" name="statusbar"/>
   <action name="actionsetting_original">
    <property name="text">
     <string>首选项...</string>
@@ -451,6 +369,9 @@ QPushButton#deleteButton:hover {
    </property>
   </action>
   <action name="actionnew">
+  <property name="icon">
+   <iconset theme="document-new"/>
+  </property>
    <property name="text">
     <string>新建(&amp;N)</string>
    </property>
@@ -459,6 +380,9 @@ QPushButton#deleteButton:hover {
    </property>
   </action>
   <action name="actionsave">
+  <property name="icon">
+   <iconset theme="document-save"/>
+  </property>
    <property name="text">
     <string>保存(&amp;S)</string>
    </property>
@@ -467,6 +391,9 @@ QPushButton#deleteButton:hover {
    </property>
   </action>
   <action name="actionopen">
+  <property name="icon">
+   <iconset theme="document-open"/>
+  </property>
    <property name="text">
     <string>打开(&amp;O)</string>
    </property>
@@ -480,6 +407,9 @@ QPushButton#deleteButton:hover {
    </property>
   </action>
   <action name="actionexit">
+  <property name="icon">
+   <iconset theme="application-exit"/>
+  </property>
    <property name="text">
     <string>退出(&amp;X)</string>
    </property>
@@ -488,6 +418,9 @@ QPushButton#deleteButton:hover {
    </property>
   </action>
   <action name="actionsaveOther">
+  <property name="icon">
+   <iconset theme="document-save-as"/>
+  </property>
    <property name="text">
     <string>另存为...</string>
    </property>
@@ -496,6 +429,9 @@ QPushButton#deleteButton:hover {
    </property>
   </action>
   <action name="actionaddRect">
+  <property name="icon">
+   <iconset theme="list-add"/>
+  </property>
    <property name="text">
     <string>添加芯片</string>
    </property>

@@ -135,7 +135,7 @@ void MainWindow::connectSignals()
     connect(ui->actionopen, &QAction::triggered, this, &MainWindow::openFile);
     connect(ui->actionsave, &QAction::triggered, this, &MainWindow::saveFile);
     connect(ui->actionsaveOther, &QAction::triggered, this, &MainWindow::saveFileAs);
-    connect(ui->actionexit, &QAction::triggered, this, &MainWindow::exportFiles);
+    // 退出采用 Qt 自动连接，不在此处手动连接：on_actionexit_triggered()
 
     // 连接文件管理器信号
     connect(m_fileManager, &FileManager::fileOperationCompleted,
@@ -315,6 +315,28 @@ void MainWindow::exportFiles()
         QMessageBox::information(this, "成功", "宏文件导出成功");
     } else {
         QMessageBox::warning(this, "错误", "无法导出宏文件：" + m_fileManager->getLastError());
+    }
+}
+
+void MainWindow::on_actionexit_triggered()
+{
+    // 与窗口 X 按钮统一：走 close()，由 closeEvent 处理确认
+    close();
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    auto ret = QMessageBox::question(
+        this,
+        "退出确认",
+        "确定要退出应用程序吗？",
+        QMessageBox::Ok | QMessageBox::Cancel,
+        QMessageBox::Cancel);
+
+    if (ret == QMessageBox::Ok) {
+        event->accept();
+    } else {
+        event->ignore();
     }
 }
 

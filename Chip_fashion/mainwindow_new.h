@@ -54,7 +54,13 @@ private slots:
 
     void on_actiondm_triggered();
 
+    // 退出（与其它 QAction 的触发命名保持一致，使用 Qt 自动连接）
+    void on_actionexit_triggered();
+
 private:
+    // 捕获窗口关闭事件（右上角 X 按钮）以提供退出确认
+    void closeEvent(QCloseEvent *event) override;
+
     void setupUI();
     void loadStyleSheet();
     void setDefaultStyle();
