@@ -37,6 +37,36 @@ CanvasScene::~CanvasScene()
     }
 }
 
+void CanvasScene::resetNamedNets()
+{
+    m_namedNets.clear();
+}
+
+void CanvasScene::addParsedNet(const QString& netName,
+                               const QList<QPair<CellItem*, QString>>& pinRefs,
+                               const QList<ConnectionLine*>& linesInNet)
+{
+    NetInfo info;
+    info.name = netName;
+    info.pins = pinRefs;
+    info.lines = linesInNet;
+    m_namedNets[netName] = info;
+    emit netTopologyChanged();
+}
+
+void CanvasScene::removeLineFromNamedNets(ConnectionLine* line)
+{
+    if (!line) return;
+    bool changed = false;
+    for (auto it = m_namedNets.begin(); it != m_namedNets.end(); ++it) {
+        NetInfo &ni = it.value();
+        int before = ni.lines.size();
+        ni.lines.removeAll(line);
+        if (before != ni.lines.size()) changed = true;
+    }
+    if (changed) emit netTopologyChanged();
+}
+
 void CanvasScene::saveSnapshot()
 {
     // 保存当前场景状态的快照
@@ -125,6 +155,10 @@ void CanvasScene::addCellItem(CellItem *item)
     addItem(item);
     item->setFlag(QGraphicsItem::ItemIsSelectable, true);
     item->setFlag(QGraphicsItem::ItemIsMovable, true);
+    if (!m_loading && !m_namedNets.isEmpty()) {
+        m_namedNets.clear(); // 新增芯片动态更新
+    }
+    emit netTopologyChanged();
 }
 
 void CanvasScene::addConnectionLine(ConnectionLine *line)
@@ -132,6 +166,7 @@ void CanvasScene::addConnectionLine(ConnectionLine *line)
     if (!line) return;
     addItem(line);
     m_connectionLines.append(line);
+    emit netTopologyChanged();
 }
 
 void CanvasScene::removeConnectionLine(ConnectionLine *line)
@@ -143,11 +178,17 @@ void CanvasScene::removeConnectionLine(ConnectionLine *line)
 
     // 从连线列表中移除
     m_connectionLines.removeOne(line);
+    // 同步命名线网结构
+    removeLineFromNamedNets(line);
 
     // 删除对象
     delete line;
 
-    // qDebug() << "已删除连线，当前连线数量:" << m_connectionLines.size();
+    // 交互删除后清空命名线网以回到动态分组
+    if (!m_loading && !m_namedNets.isEmpty()) {
+        m_namedNets.clear();
+    }
+    emit netTopologyChanged();
 }
 
 void CanvasScene::setSelectionMode(bool enabled)
@@ -329,6 +370,10 @@ void CanvasScene::finishConnection(CellItem* endItem, const QString& endPinId)
     ConnectionLine* line = new ConnectionLine(m_connectionStartItem, startConnector, endItem, endConnector);
     addItem(line);
     m_connectionLines.append(line);
+    if (!m_loading && !m_namedNets.isEmpty()) {
+        m_namedNets.clear(); // 交互新增破坏静态命名线网
+    }
+    if (!m_loading) emit netTopologyChanged();
 
     // 记录连线关系
     m_connectionStartItem->addConnection(endItem, m_connectionStartPinId, endPinId);

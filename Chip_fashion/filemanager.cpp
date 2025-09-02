@@ -34,6 +34,9 @@ bool FileManager::openDesignFile(const QString& filePath, CanvasScene* scene)
     qDebug() << "========== 开始加载文件 ==========" << filePath;
     clearError();
     scene->clear();
+    // 清空旧的命名线网缓存并标记加载中，避免交互逻辑干扰
+    scene->resetNamedNets();
+    scene->setLoading(true);
 
     QTextStream in(&file);
     // Qt6 中不再需要手动设置编码，默认使用 UTF-8
@@ -126,10 +129,12 @@ bool FileManager::openDesignFile(const QString& filePath, CanvasScene* scene)
 
     if (parseError) {
         setError("Parse error occurred while reading file");
+        scene->setLoading(false);
         return false;
     }
 
     scene->update();
+    scene->setLoading(false);
     emit fileOperationCompleted("open", true);
     return true;
 }
@@ -683,6 +688,7 @@ bool FileManager::parseNet(const QString& line, QTextStream& stream, CanvasScene
         return true; // 网络至少需要2个引脚
     }
 
+    QList<ConnectionLine*> createdLines; // 收集属于该命名线网的连线
     for (int i = 0; i < netPins.size() - 1; ++i) {
         QString sourceInstance = netPins[i].first;
         QString sourcePin = netPins[i].second;
@@ -720,7 +726,19 @@ bool FileManager::parseNet(const QString& line, QTextStream& stream, CanvasScene
             sourceCell->addConnection(targetCell, sourcePin, targetPin);
             ConnectionLine* line = new ConnectionLine(sourceCell, sourceConn, targetCell, targetConn);
             scene->addConnectionLine(line); // 使用专门的方法添加连线
+            createdLines.append(line);
         }
+    }
+
+    // 构建命名线网：记录所有参与的芯片与引脚
+    QList<QPair<CellItem*, QString>> pinRefs;
+    for (const auto &p : netPins) {
+        if (cellMap.contains(p.first)) {
+            pinRefs.append(qMakePair(cellMap[p.first], p.second));
+        }
+    }
+    if (!pinRefs.isEmpty()) {
+        scene->addParsedNet(netName, pinRefs, createdLines);
     }
 
     return true;

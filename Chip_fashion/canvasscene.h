@@ -59,6 +59,22 @@ public:
     void cancelConnection();
     QList<ConnectionLine*> getConnectionLines() const;
 
+    // 命名线网（从文件加载）支持
+    struct NetInfo {
+        QString name;                                      // 线网名
+        QList<QPair<CellItem*, QString>> pins;             // (芯片, 引脚ID)
+        QList<ConnectionLine*> lines;                      // 属于该线网的连线
+    };
+    void resetNamedNets();                                 // 清空所有命名线网数据
+    void addParsedNet(const QString& netName,
+                      const QList<QPair<CellItem*, QString>>& pinRefs,
+                      const QList<ConnectionLine*>& linesInNet); // 添加解析到的线网
+    bool hasNamedNets() const { return !m_namedNets.isEmpty(); }
+    QMap<QString, NetInfo> getNamedNets() const { return m_namedNets; }
+    void removeLineFromNamedNets(ConnectionLine* line);    // 当连线被删除时同步清理
+    void setLoading(bool loading) { m_loading = loading; }
+    bool isLoading() const { return m_loading; }
+
     // 获取所有芯片项
     QList<CellItem*> getAllCellItems() const;
 
@@ -66,6 +82,10 @@ public:
     void updateOverlapStates();  // 更新所有矩形的重合状态
     bool isGroupMoving() const { return m_isGroupMoving; }  // 检查是否在组移动模式
     void fitToWindow();  // 自动适应视图到所有内容
+
+signals:
+    // 当芯片或连线结构发生变化（新增/删除/连接变动）时发出，用于重建线网视图
+    void netTopologyChanged();
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -121,5 +141,9 @@ private:
     int m_rulerSize = 20;  // 标尺大小（像素），再调小一点
     int m_rulerTickSize = 5;  // 标尺刻度大小，再调小一点
     int m_rulerTextOffset = 5;  // 标尺文字偏移，再调小一点
+
+    // 命名线网数据（仅当从文件加载时填充）
+    QMap<QString, NetInfo> m_namedNets;                    // key = 线网名
+    bool m_loading = false;                                // 文件加载阶段标志
 };
 #endif // CANVASSCENE_H
